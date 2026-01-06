@@ -23,7 +23,6 @@ import {
     deleteDoc,
     query,
     where,
-    orderBy,
     onSnapshot,
     serverTimestamp,
     enableIndexedDbPersistence
@@ -167,16 +166,17 @@ async function logout() {
 function subscribeToData() {
     if (!currentUser) return;
 
-    // Subscribe to debts
+    // Subscribe to debts (sin orderBy para evitar necesidad de índices)
     const debtsQuery = query(
         collection(db, 'debts'),
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', currentUser.uid)
     );
 
     unsubscribers.push(
         onSnapshot(debtsQuery, (snapshot) => {
             state.debts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Ordenar en cliente
+            state.debts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             renderDebts();
             updateDashboard();
         }, (error) => {
@@ -187,13 +187,13 @@ function subscribeToData() {
     // Subscribe to income
     const incomeQuery = query(
         collection(db, 'income'),
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', currentUser.uid)
     );
 
     unsubscribers.push(
         onSnapshot(incomeQuery, (snapshot) => {
             state.income = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            state.income.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             renderIncome();
             updateDashboard();
         }, (error) => {
@@ -204,13 +204,13 @@ function subscribeToData() {
     // Subscribe to expenses
     const expensesQuery = query(
         collection(db, 'expenses'),
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', currentUser.uid)
     );
 
     unsubscribers.push(
         onSnapshot(expensesQuery, (snapshot) => {
             state.expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            state.expenses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             renderExpenses();
             updateDashboard();
         }, (error) => {
@@ -270,32 +270,76 @@ async function deleteDebt(id) {
     }
 }
 
-async function markPayment(debtId, monthYear, paid) {
+async function markPayment(debtId, monthYear, paid, customAmount = null) {
     try {
         const debt = state.debts.find(d => d.id === debtId);
         if (!debt) return;
 
+        let paymentHistory = debt.paymentHistory || [];
         let payments = debt.payments || [];
+
         if (paid) {
+            // Si hay monto personalizado, abrimos modal
+            if (customAmount === null) {
+                openPaymentModal(debtId, monthYear, debt.monthlyPayment);
+                return;
+            }
+
+            // Agregar al historial de pagos
             if (!payments.includes(monthYear)) {
                 payments.push(monthYear);
+                paymentHistory.push({
+                    monthYear,
+                    amount: customAmount,
+                    date: new Date().toISOString()
+                });
             }
         } else {
+            // Quitar del historial
             payments = payments.filter(p => p !== monthYear);
+            paymentHistory = paymentHistory.filter(p => p.monthYear !== monthYear);
         }
 
-        const paidAmount = payments.length * debt.monthlyPayment;
+        // Calcular total pagado basado en historial
+        const paidAmount = paymentHistory.reduce((sum, p) => sum + (p.amount || 0), 0);
 
         await updateDoc(doc(db, 'debts', debtId), {
             payments,
+            paymentHistory,
             paidAmount
         });
 
         showToast(paid ? 'Pago registrado' : 'Pago desmarcado', 'success');
+        closeModal();
     } catch (error) {
         console.error('Mark payment error:', error);
         showToast('Error al registrar pago', 'error');
     }
+}
+
+// Función para abrir modal de pago personalizado
+function openPaymentModal(debtId, monthYear, suggestedAmount) {
+    const overlay = document.getElementById('modal-overlay');
+    const title = document.getElementById('modal-title');
+    const form = document.getElementById('modal-form');
+
+    title.textContent = 'Registrar Pago';
+    form.innerHTML = `
+        <input type="hidden" id="payment-debt-id" value="${debtId}">
+        <input type="hidden" id="payment-month-year" value="${monthYear}">
+        <div class="form-group">
+            <label for="payment-amount">Monto a pagar *</label>
+            <input type="number" id="payment-amount" value="${suggestedAmount}" placeholder="Monto del pago" required min="0">
+            <small style="color: var(--text-muted); font-size: 12px;">Puedes pagar más o menos del monto sugerido</small>
+        </div>
+        <div class="form-group">
+            <label for="payment-notes">Notas (opcional)</label>
+            <input type="text" id="payment-notes" placeholder="Ej: Pago parcial, abono extra...">
+        </div>
+        <button type="submit" class="btn btn-success">💸 Registrar Pago</button>
+    `;
+    form.dataset.type = 'payment';
+    overlay.classList.add('active');
 }
 
 // Income
@@ -855,6 +899,13 @@ function handleFormSubmit(e) {
             } else {
                 addExpense(expenseData);
             }
+            break;
+
+        case 'payment':
+            const paymentDebtId = document.getElementById('payment-debt-id').value;
+            const paymentMonthYear = document.getElementById('payment-month-year').value;
+            const paymentAmount = parseFloat(document.getElementById('payment-amount').value);
+            markPayment(paymentDebtId, paymentMonthYear, true, paymentAmount);
             break;
     }
 }
