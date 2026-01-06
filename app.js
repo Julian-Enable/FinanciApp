@@ -293,11 +293,31 @@ async function markPayment(debtId, monthYear, paid, customAmount = null) {
                     amount: customAmount,
                     date: new Date().toISOString()
                 });
+
+                // Registrar automáticamente como gasto
+                await addDoc(collection(db, 'expenses'), {
+                    name: `Pago: ${debt.name}`,
+                    amount: customAmount,
+                    category: 'debt',
+                    date: new Date().toISOString().split('T')[0],
+                    userId: currentUser.uid,
+                    debtId: debtId,
+                    monthYear: monthYear,
+                    createdAt: serverTimestamp()
+                });
             }
         } else {
-            // Quitar del historial
+            // Quitar del historial y eliminar el gasto asociado
             payments = payments.filter(p => p !== monthYear);
             paymentHistory = paymentHistory.filter(p => p.monthYear !== monthYear);
+
+            // Buscar y eliminar el gasto asociado
+            const expenseToDelete = state.expenses.find(e =>
+                e.debtId === debtId && e.monthYear === monthYear
+            );
+            if (expenseToDelete) {
+                await deleteDoc(doc(db, 'expenses', expenseToDelete.id));
+            }
         }
 
         // Calcular total pagado basado en historial
@@ -309,7 +329,7 @@ async function markPayment(debtId, monthYear, paid, customAmount = null) {
             paidAmount
         });
 
-        showToast(paid ? 'Pago registrado' : 'Pago desmarcado', 'success');
+        showToast(paid ? 'Pago registrado como gasto' : 'Pago y gasto eliminados', 'success');
         closeModal();
     } catch (error) {
         console.error('Mark payment error:', error);
@@ -620,6 +640,7 @@ function renderExpenses() {
     }
 
     const categoryIcons = {
+        debt: '💳',
         food: '🍔',
         transport: '🚗',
         entertainment: '🎮',
