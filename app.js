@@ -685,9 +685,238 @@ function updateDashboard() {
     const balanceEl = document.getElementById('total-balance');
     balanceEl.style.color = balance >= 0 ? 'var(--accent-secondary)' : 'var(--accent-danger)';
 
-    // Update upcoming payments
+    // Update upcoming payments and analysis
     renderUpcomingPayments();
     renderCalendar();
+    renderAnalysis();
+}
+
+// ============================================
+// Financial Analysis
+// ============================================
+function renderAnalysis() {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Set month label
+    const monthLabel = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    document.getElementById('analysis-month').textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+    // Calculate totals for current month
+    const monthExpenses = state.expenses.filter(e => {
+        if (!e.date) return false;
+        const d = new Date(e.date);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    const monthIncome = state.income.reduce((sum, i) => sum + (i.amount || 0), 0);
+    const totalExpenses = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const spendingPercentage = monthIncome > 0 ? (totalExpenses / monthIncome * 100) : 0;
+
+    // Update summary
+    document.getElementById('analysis-income').textContent = formatCurrency(monthIncome);
+    document.getElementById('analysis-expenses').textContent = formatCurrency(totalExpenses);
+    document.getElementById('analysis-percentage').textContent = `${Math.round(spendingPercentage)}%`;
+
+    // Update spending bar
+    const spendingFill = document.getElementById('spending-fill');
+    const cappedPercentage = Math.min(spendingPercentage, 100);
+    spendingFill.style.width = `${cappedPercentage}%`;
+
+    if (spendingPercentage <= 50) {
+        spendingFill.style.background = 'var(--accent-secondary)';
+        document.getElementById('spending-status').textContent = 'Excelente control de gastos';
+    } else if (spendingPercentage <= 70) {
+        spendingFill.style.background = 'var(--gradient-success)';
+        document.getElementById('spending-status').textContent = 'Buen balance financiero';
+    } else if (spendingPercentage <= 90) {
+        spendingFill.style.background = 'var(--accent-warning)';
+        document.getElementById('spending-status').textContent = 'Cuidado: gastos elevados';
+    } else {
+        spendingFill.style.background = 'var(--accent-danger)';
+        document.getElementById('spending-status').textContent = 'Alerta: estás gastando demasiado';
+    }
+
+    // Category analysis with recommended limits
+    const categoryConfig = {
+        debt: { name: 'Deudas/Créditos', icon: ICONS.card, limit: 35, essential: true },
+        fixed: { name: 'Gastos Fijos', icon: ICONS.fixed, limit: 30, essential: true },
+        food: { name: 'Comida', icon: ICONS.food, limit: 15, essential: true },
+        transport: { name: 'Transporte', icon: ICONS.transport, limit: 10, essential: true },
+        entertainment: { name: 'Entretenimiento', icon: ICONS.entertainment, limit: 5, essential: false },
+        services: { name: 'Servicios', icon: ICONS.services, limit: 5, essential: false },
+        health: { name: 'Salud', icon: ICONS.health, limit: 10, essential: true },
+        other: { name: 'Otros', icon: ICONS.package, limit: 10, essential: false }
+    };
+
+    // Calculate expenses by category
+    const categoryTotals = {};
+    monthExpenses.forEach(e => {
+        const cat = e.category || 'other';
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + (e.amount || 0);
+    });
+
+    // Generate donut chart
+    const colors = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
+    let conicGradient = '';
+    let currentAngle = 0;
+    let legendHTML = '';
+    let colorIndex = 0;
+
+    Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([cat, amount]) => {
+            const percentage = totalExpenses > 0 ? (amount / totalExpenses * 100) : 0;
+            const angle = percentage * 3.6;
+            const color = colors[colorIndex % colors.length];
+
+            conicGradient += `${color} ${currentAngle}deg ${currentAngle + angle}deg, `;
+            currentAngle += angle;
+
+            const config = categoryConfig[cat] || { name: cat, icon: ICONS.package };
+            legendHTML += `
+                <div class="legend-item-analysis">
+                    <span class="legend-color" style="background: ${color}"></span>
+                    <span class="legend-text">
+                        <span class="legend-name">${config.name}</span>
+                        <span class="legend-value">${Math.round(percentage)}%</span>
+                    </span>
+                </div>
+            `;
+            colorIndex++;
+        });
+
+    if (conicGradient) {
+        conicGradient = conicGradient.slice(0, -2);
+        document.getElementById('donut-chart').style.background = `conic-gradient(${conicGradient})`;
+    }
+    document.getElementById('chart-total').textContent = formatCurrency(totalExpenses);
+    document.getElementById('chart-legend').innerHTML = legendHTML;
+
+    // Generate category cards
+    const cardsContainer = document.getElementById('category-cards');
+    let cardsHTML = '';
+    let warnings = [];
+    let dangers = [];
+
+    Object.entries(categoryConfig).forEach(([cat, config]) => {
+        const amount = categoryTotals[cat] || 0;
+        const percentageOfIncome = monthIncome > 0 ? (amount / monthIncome * 100) : 0;
+
+        let status, statusClass, recommendation;
+        if (percentageOfIncome <= config.limit * 0.7) {
+            status = 'good';
+            statusClass = 'status-good';
+            recommendation = 'Dentro del presupuesto ideal';
+        } else if (percentageOfIncome <= config.limit) {
+            status = 'warning';
+            statusClass = 'status-warning';
+            recommendation = `Cerca del límite (${config.limit}%)`;
+            if (!config.essential) warnings.push(config.name);
+        } else {
+            status = 'danger';
+            statusClass = 'status-danger';
+            recommendation = `Excede el límite recomendado de ${config.limit}%`;
+            dangers.push({ name: config.name, excess: percentageOfIncome - config.limit, essential: config.essential });
+        }
+
+        if (amount > 0) {
+            cardsHTML += `
+                <div class="category-card ${statusClass}">
+                    <div class="category-header">
+                        <span class="category-name">
+                            ${config.icon}
+                            ${config.name}
+                        </span>
+                        <span class="category-percentage ${status}">${percentageOfIncome.toFixed(1)}%</span>
+                    </div>
+                    <div class="category-bar">
+                        <div class="category-bar-fill ${status}" style="width: ${Math.min(percentageOfIncome / config.limit * 100, 100)}%"></div>
+                    </div>
+                    <div class="category-details">
+                        <span>${formatCurrency(amount)}</span>
+                        <span>Límite: ${config.limit}% del ingreso</span>
+                    </div>
+                    <div class="category-recommendation ${status}">${recommendation}</div>
+                </div>
+            `;
+        }
+    });
+    cardsContainer.innerHTML = cardsHTML || '<p class="empty-state">No hay gastos este mes para analizar</p>';
+
+    // Generate health indicator and recommendations
+    const healthIndicator = document.getElementById('health-indicator');
+    const healthTitle = document.getElementById('health-title');
+    const healthDescription = document.getElementById('health-description');
+    const recommendationsContainer = document.getElementById('recommendations');
+
+    let healthClass, healthIcon;
+    if (spendingPercentage <= 50 && dangers.length === 0) {
+        healthClass = 'excellent';
+        healthIcon = ICONS.check;
+        healthTitle.textContent = 'Excelente Salud Financiera';
+        healthDescription.textContent = 'Estás ahorrando más del 50% de tus ingresos. ¡Sigue así!';
+    } else if (spendingPercentage <= 70 && dangers.length === 0) {
+        healthClass = 'good';
+        healthIcon = ICONS.check;
+        healthTitle.textContent = 'Buena Salud Financiera';
+        healthDescription.textContent = 'Tienes un balance saludable entre ingresos y gastos.';
+    } else if (spendingPercentage <= 90 || dangers.length <= 2) {
+        healthClass = 'warning';
+        healthIcon = ICONS.clock;
+        healthTitle.textContent = 'Atención Requerida';
+        healthDescription.textContent = 'Algunos gastos están por encima del límite recomendado.';
+    } else {
+        healthClass = 'danger';
+        healthIcon = ICONS.expense;
+        healthTitle.textContent = 'Situación Crítica';
+        healthDescription.textContent = 'Estás gastando más de lo recomendado. Revisa tus gastos.';
+    }
+
+    healthIndicator.className = `health-indicator ${healthClass}`;
+    healthIndicator.querySelector('.health-icon').innerHTML = healthIcon;
+
+    // Generate recommendations
+    let recsHTML = '';
+
+    dangers.filter(d => !d.essential).forEach(d => {
+        recsHTML += `
+            <div class="recommendation-item">
+                <span class="recommendation-icon danger">${ICONS.expense}</span>
+                <span><strong>${d.name}</strong> excede ${d.excess.toFixed(1)}% el límite. Considera reducir estos gastos.</span>
+            </div>
+        `;
+    });
+
+    dangers.filter(d => d.essential).forEach(d => {
+        recsHTML += `
+            <div class="recommendation-item">
+                <span class="recommendation-icon warning">${ICONS.clock}</span>
+                <span><strong>${d.name}</strong> está alto. Busca alternativas más económicas.</span>
+            </div>
+        `;
+    });
+
+    if (spendingPercentage > 70 && dangers.length === 0) {
+        recsHTML += `
+            <div class="recommendation-item">
+                <span class="recommendation-icon tip">${ICONS.chart}</span>
+                <span>Intenta reducir gastos generales para aumentar tu ahorro mensual.</span>
+            </div>
+        `;
+    }
+
+    if (recsHTML === '') {
+        recsHTML = `
+            <div class="recommendation-item">
+                <span class="recommendation-icon tip">${ICONS.check}</span>
+                <span>¡Vas muy bien! Mantén este ritmo de gastos controlados.</span>
+            </div>
+        `;
+    }
+
+    recommendationsContainer.innerHTML = recsHTML;
 }
 
 function renderUpcomingPayments() {

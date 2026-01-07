@@ -307,6 +307,69 @@
                     <p class="empty-state">No hay pagos programados</p>
                 </div>
             </section>
+
+            <!-- Financial Analysis Section -->
+            <section id="analysis-section" class="section">
+                <div class="section-header">
+                    <h2>Análisis Financiero</h2>
+                    <span class="current-month" id="analysis-month"></span>
+                </div>
+
+                <!-- Income vs Expenses Summary -->
+                <div class="analysis-summary glass-card">
+                    <div class="analysis-row">
+                        <div class="analysis-stat">
+                            <span class="stat-label">Ingresos del mes</span>
+                            <span class="stat-value income" id="analysis-income">$0</span>
+                        </div>
+                        <div class="analysis-stat">
+                            <span class="stat-label">Gastos del mes</span>
+                            <span class="stat-value expense" id="analysis-expenses">$0</span>
+                        </div>
+                        <div class="analysis-stat">
+                            <span class="stat-label">% Gastado</span>
+                            <span class="stat-value" id="analysis-percentage">0%</span>
+                        </div>
+                    </div>
+                    <div class="spending-bar">
+                        <div class="spending-fill" id="spending-fill"></div>
+                    </div>
+                    <p class="spending-status" id="spending-status"></p>
+                </div>
+
+                <!-- Expenses by Category Chart -->
+                <div class="chart-container glass-card">
+                    <h3>Gastos por Categoría</h3>
+                    <div class="donut-chart-wrapper">
+                        <div class="donut-chart" id="donut-chart"></div>
+                        <div class="chart-center">
+                            <span class="chart-total" id="chart-total">$0</span>
+                            <span class="chart-label">Total</span>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="chart-legend"></div>
+                </div>
+
+                <!-- Category Analysis Cards -->
+                <div class="category-analysis">
+                    <h3>Análisis por Categoría</h3>
+                    <p class="analysis-subtitle">Porcentaje de tu ingreso mensual</p>
+                    <div id="category-cards" class="category-cards"></div>
+                </div>
+
+                <!-- Financial Health & Recommendations -->
+                <div class="health-section glass-card">
+                    <h3>Estado Financiero</h3>
+                    <div class="health-indicator" id="health-indicator">
+                        <div class="health-icon"></div>
+                        <div class="health-text">
+                            <span class="health-title" id="health-title">Calculando...</span>
+                            <span class="health-description" id="health-description"></span>
+                        </div>
+                    </div>
+                    <div class="recommendations" id="recommendations"></div>
+                </div>
+            </section>
         </main>
 
         <!-- Bottom Navigation -->
@@ -348,6 +411,14 @@
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                 </svg>
                 <span>Gastos</span>
+            </button>
+            <button class="nav-item" data-section="analysis">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+                <span>Análisis</span>
             </button>
             <button class="nav-item" data-section="calendar">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
