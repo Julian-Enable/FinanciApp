@@ -151,8 +151,91 @@ body::before {
 }
 
 .logo-icon {
-    font-size: 3rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     animation: float 3s ease-in-out infinite;
+}
+
+.logo-icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: var(--accent-primary);
+}
+
+.logo-icon-small {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-icon-small svg {
+    width: 100%;
+    height: 100%;
+    stroke: var(--accent-primary);
+}
+
+/* SVG Icon Base Styles */
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25em;
+    height: 1.25em;
+}
+
+.icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: currentColor;
+}
+
+.icon-lg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.icon-xl {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Card icons */
+.card-icon {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+}
+
+.card-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+}
+
+.summary-card.income .card-icon svg {
+    stroke: var(--accent-secondary);
+}
+
+.summary-card.expenses .card-icon svg {
+    stroke: var(--accent-danger);
+}
+
+.summary-card.balance .card-icon svg {
+    stroke: var(--accent-primary);
+}
+
+.summary-card.debts .card-icon svg {
+    stroke: var(--accent-warning);
 }
 
 @keyframes float {
@@ -813,6 +896,27 @@ body::before {
 .item-details span {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
+}
+
+.item-icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: var(--text-secondary);
+}
+
+/* Section Title Icon */
+.section-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.section-icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: var(--accent-primary);
 }
 
 .item-right {

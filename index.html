@@ -19,7 +19,12 @@
         <div class="login-container">
             <div class="login-header">
                 <div class="logo">
-                    <span class="logo-icon">💰</span>
+                    <span class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v12M8 10h8M8 14h8" />
+                        </svg>
+                    </span>
                     <h1>FinanciApp</h1>
                 </div>
                 <p class="tagline">Tu control financiero personal</p>
@@ -63,7 +68,12 @@
         <div class="login-container">
             <div class="login-header">
                 <div class="logo">
-                    <span class="logo-icon">💰</span>
+                    <span class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v12M8 10h8M8 14h8" />
+                        </svg>
+                    </span>
                     <h1>FinanciApp</h1>
                 </div>
                 <p class="tagline">Crea tu cuenta gratis</p>
@@ -96,7 +106,12 @@
         <!-- Header -->
         <header class="app-header">
             <div class="header-left">
-                <span class="logo-icon-small">💰</span>
+                <span class="logo-icon-small">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v12M8 10h8M8 14h8" />
+                    </svg>
+                </span>
                 <h1>FinanciApp</h1>
             </div>
             <div class="header-right">
@@ -123,28 +138,48 @@
                 <!-- Summary Cards -->
                 <div class="summary-cards">
                     <div class="summary-card income">
-                        <div class="card-icon">📈</div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                <polyline points="17 6 23 6 23 12" />
+                            </svg>
+                        </div>
                         <div class="card-content">
                             <span class="card-label">Ingresos</span>
                             <span class="card-value" id="total-income">$0</span>
                         </div>
                     </div>
                     <div class="summary-card expenses">
-                        <div class="card-icon">📉</div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+                                <polyline points="17 18 23 18 23 12" />
+                            </svg>
+                        </div>
                         <div class="card-content">
                             <span class="card-label">Gastos</span>
                             <span class="card-value" id="total-expenses">$0</span>
                         </div>
                     </div>
                     <div class="summary-card balance">
-                        <div class="card-icon">💎</div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon
+                                    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            </svg>
+                        </div>
                         <div class="card-content">
                             <span class="card-label">Balance</span>
                             <span class="card-value" id="total-balance">$0</span>
                         </div>
                     </div>
                     <div class="summary-card debts">
-                        <div class="card-icon">💳</div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                                <line x1="1" y1="10" x2="23" y2="10" />
+                            </svg>
+                        </div>
                         <div class="card-content">
                             <span class="card-label">Deudas Pendientes</span>
                             <span class="card-value" id="total-debts">$0</span>
@@ -155,7 +190,12 @@
                 <!-- Upcoming Payments -->
                 <div class="upcoming-section glass-card">
                     <div class="section-title">
-                        <h3>⏰ Próximos Pagos</h3>
+                        <span class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                            </svg></span>
+                        <h3>Próximos Pagos</h3>
                         <span class="badge" id="upcoming-count">0</span>
                     </div>
                     <div id="upcoming-payments-list" class="payments-list">
@@ -167,7 +207,7 @@
             <!-- Debts Section -->
             <section id="debts-section" class="section">
                 <div class="section-header">
-                    <h2>💳 Mis Deudas</h2>
+                    <h2>Mis Deudas</h2>
                     <button class="btn btn-primary btn-sm" id="add-debt-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -185,7 +225,7 @@
             <!-- Fixed Expenses Section -->
             <section id="fixed-section" class="section">
                 <div class="section-header">
-                    <h2>🔄 Gastos Fijos</h2>
+                    <h2>Gastos Fijos</h2>
                     <button class="btn btn-primary btn-sm" id="add-fixed-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -207,7 +247,7 @@
             <!-- Income Section -->
             <section id="income-section" class="section">
                 <div class="section-header">
-                    <h2>💵 Mis Ingresos</h2>
+                    <h2>Mis Ingresos</h2>
                     <button class="btn btn-primary btn-sm" id="add-income-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -238,14 +278,14 @@
                 <div class="expenses-filters">
                     <select id="expense-category-filter" class="filter-select">
                         <option value="all">Todas las categorías</option>
-                        <option value="debt">💳 Pago de Deudas</option>
-                        <option value="fixed">🔄 Gastos Fijos</option>
-                        <option value="food">🍔 Comida</option>
-                        <option value="transport">🚗 Transporte</option>
-                        <option value="entertainment">🎮 Entretenimiento</option>
-                        <option value="services">📱 Servicios</option>
-                        <option value="health">🏥 Salud</option>
-                        <option value="other">📦 Otros</option>
+                        <option value="debt">Pago de Deudas</option>
+                        <option value="fixed">Gastos Fijos</option>
+                        <option value="food">Comida</option>
+                        <option value="transport">Transporte</option>
+                        <option value="entertainment">Entretenimiento</option>
+                        <option value="services">Servicios</option>
+                        <option value="health">Salud</option>
+                        <option value="other">Otros</option>
                     </select>
                 </div>
                 <div id="expenses-list" class="items-list">
@@ -256,7 +296,7 @@
             <!-- Calendar Section -->
             <section id="calendar-section" class="section">
                 <div class="section-header">
-                    <h2>📅 Calendario de Pagos</h2>
+                    <h2>Calendario de Pagos</h2>
                 </div>
                 <div class="calendar-legend">
                     <span class="legend-item"><span class="dot paid"></span> Pagado</span>
