@@ -724,7 +724,13 @@ function renderAnalysis() {
     });
 
     const monthIncome = state.income.reduce((sum, i) => sum + (i.amount || 0), 0);
-    const variableExpenses = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    // Fix: Exclude Debt Payments and Fixed Expense Payments from Variable Expenses 
+    // to avoid double counting with "Total Obligations"
+    const variableExpenses = monthExpenses.reduce((sum, e) => {
+        if (e.category === 'debt' || e.category === 'fixed' || e.debtId || e.fixedId) return sum;
+        return sum + (e.amount || 0);
+    }, 0);
 
     // Calculate Monthly Obligations (Fixed Expenses + Debt Payments)
     // We assume these are monthly commitments regardless of payment status
@@ -743,7 +749,7 @@ function renderAnalysis() {
 
     let projectedIncome = monthIncome;
 
-    // If we have at least one salary entry and it's early in the month (before 20th), 
+    // If we have at least one salary entry and it's early in the month (be fore 20th), 
     // and we assume bi-weekly payments, we might project double if only one received.
     // Ideally, we should use a user setting, but for now let's be smart:
     // If total expenses > monthIncome but < (monthIncome + lastSalary), assume another salary coming
