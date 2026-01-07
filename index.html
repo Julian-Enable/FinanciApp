@@ -182,6 +182,28 @@
                 </div>
             </section>
 
+            <!-- Fixed Expenses Section -->
+            <section id="fixed-section" class="section">
+                <div class="section-header">
+                    <h2>🔄 Gastos Fijos</h2>
+                    <button class="btn btn-primary btn-sm" id="add-fixed-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Nuevo Gasto Fijo
+                    </button>
+                </div>
+                <p class="section-description"
+                    style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
+                    Servicios y pagos mensuales recurrentes (arriendo, servicios, suscripciones)
+                </p>
+                <div id="fixed-list" class="debts-grid">
+                    <p class="empty-state">No tienes gastos fijos registrados</p>
+                </div>
+            </section>
+
             <!-- Income Section -->
             <section id="income-section" class="section">
                 <div class="section-header">
@@ -217,6 +239,7 @@
                     <select id="expense-category-filter" class="filter-select">
                         <option value="all">Todas las categorías</option>
                         <option value="debt">💳 Pago de Deudas</option>
+                        <option value="fixed">🔄 Gastos Fijos</option>
                         <option value="food">🍔 Comida</option>
                         <option value="transport">🚗 Transporte</option>
                         <option value="entertainment">🎮 Entretenimiento</option>
@@ -263,6 +286,13 @@
                     <line x1="1" y1="10" x2="23" y2="10" />
                 </svg>
                 <span>Deudas</span>
+            </button>
+            <button class="nav-item" data-section="fixed">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+                <span>Fijos</span>
             </button>
             <button class="nav-item" data-section="income">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

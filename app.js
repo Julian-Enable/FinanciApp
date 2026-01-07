@@ -50,6 +50,7 @@ const state = {
     debts: [],
     income: [],
     expenses: [],
+    fixedExpenses: [],
     currentSection: 'dashboard'
 };
 
@@ -217,6 +218,23 @@ function subscribeToData() {
             console.error('Expenses subscription error:', error);
         })
     );
+
+    // Subscribe to fixed expenses
+    const fixedQuery = query(
+        collection(db, 'fixedExpenses'),
+        where('userId', '==', currentUser.uid)
+    );
+
+    unsubscribers.push(
+        onSnapshot(fixedQuery, (snapshot) => {
+            state.fixedExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            state.fixedExpenses.sort((a, b) => (a.dueDay || 0) - (b.dueDay || 0));
+            renderFixedExpenses();
+            updateDashboard();
+        }, (error) => {
+            console.error('Fixed expenses subscription error:', error);
+        })
+    );
 }
 
 function unsubscribeFromData() {
@@ -225,6 +243,7 @@ function unsubscribeFromData() {
     state.debts = [];
     state.income = [];
     state.expenses = [];
+    state.fixedExpenses = [];
 }
 
 // ============================================
@@ -438,6 +457,114 @@ async function deleteExpense(id) {
     }
 }
 
+// Fixed Expenses
+async function addFixedExpense(data) {
+    try {
+        await addDoc(collection(db, 'fixedExpenses'), {
+            ...data,
+            userId: currentUser.uid,
+            payments: [],
+            createdAt: serverTimestamp()
+        });
+        showToast('Gasto fijo agregado', 'success');
+        closeModal();
+    } catch (error) {
+        console.error('Add fixed expense error:', error);
+        showToast('Error al agregar gasto fijo', 'error');
+    }
+}
+
+async function updateFixedExpense(id, data) {
+    try {
+        await updateDoc(doc(db, 'fixedExpenses', id), data);
+        showToast('Gasto fijo actualizado', 'success');
+        closeModal();
+    } catch (error) {
+        console.error('Update fixed expense error:', error);
+        showToast('Error al actualizar gasto fijo', 'error');
+    }
+}
+
+async function deleteFixedExpense(id) {
+    if (!confirm('¿Estás seguro de eliminar este gasto fijo?')) return;
+    try {
+        await deleteDoc(doc(db, 'fixedExpenses', id));
+        showToast('Gasto fijo eliminado', 'success');
+    } catch (error) {
+        console.error('Delete fixed expense error:', error);
+        showToast('Error al eliminar gasto fijo', 'error');
+    }
+}
+
+async function markFixedPayment(fixedId, monthYear, paid, customAmount = null) {
+    try {
+        const fixed = state.fixedExpenses.find(f => f.id === fixedId);
+        if (!fixed) return;
+
+        let payments = fixed.payments || [];
+
+        if (paid) {
+            // Si no hay monto, abrimos modal
+            if (customAmount === null) {
+                openFixedPaymentModal(fixedId, monthYear, fixed.amount);
+                return;
+            }
+
+            if (!payments.includes(monthYear)) {
+                payments.push(monthYear);
+
+                // Registrar automáticamente como gasto
+                await addDoc(collection(db, 'expenses'), {
+                    name: `${fixed.name}`,
+                    amount: customAmount,
+                    category: 'fixed',
+                    date: new Date().toISOString().split('T')[0],
+                    userId: currentUser.uid,
+                    fixedId: fixedId,
+                    monthYear: monthYear,
+                    createdAt: serverTimestamp()
+                });
+            }
+        } else {
+            payments = payments.filter(p => p !== monthYear);
+
+            // Eliminar gasto asociado
+            const expenseToDelete = state.expenses.find(e =>
+                e.fixedId === fixedId && e.monthYear === monthYear
+            );
+            if (expenseToDelete) {
+                await deleteDoc(doc(db, 'expenses', expenseToDelete.id));
+            }
+        }
+
+        await updateDoc(doc(db, 'fixedExpenses', fixedId), { payments });
+        showToast(paid ? 'Pago registrado' : 'Pago desmarcado', 'success');
+        closeModal();
+    } catch (error) {
+        console.error('Mark fixed payment error:', error);
+        showToast('Error al registrar pago', 'error');
+    }
+}
+
+function openFixedPaymentModal(fixedId, monthYear, suggestedAmount) {
+    const overlay = document.getElementById('modal-overlay');
+    const title = document.getElementById('modal-title');
+    const form = document.getElementById('modal-form');
+
+    title.textContent = 'Registrar Pago de Gasto Fijo';
+    form.innerHTML = `
+        <input type="hidden" id="fixed-payment-id" value="${fixedId}">
+        <input type="hidden" id="fixed-payment-month" value="${monthYear}">
+        <div class="form-group">
+            <label for="fixed-payment-amount">Monto a pagar *</label>
+            <input type="number" id="fixed-payment-amount" value="${suggestedAmount}" placeholder="Monto del pago" required min="0">
+        </div>
+        <button type="submit" class="btn btn-success">💸 Registrar Pago</button>
+    `;
+    form.dataset.type = 'fixed-payment';
+    overlay.classList.add('active');
+}
+
 // ============================================
 // Render Functions
 // ============================================
@@ -641,6 +768,7 @@ function renderExpenses() {
 
     const categoryIcons = {
         debt: '💳',
+        fixed: '🔄',
         food: '🍔',
         transport: '🚗',
         entertainment: '🎮',
@@ -677,6 +805,66 @@ function renderExpenses() {
             </div>
         </div>
     `).join('');
+}
+
+function renderFixedExpenses() {
+    const container = document.getElementById('fixed-list');
+
+    if (state.fixedExpenses.length === 0) {
+        container.innerHTML = '<p class="empty-state">No tienes gastos fijos registrados</p>';
+        return;
+    }
+
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    container.innerHTML = state.fixedExpenses.map(fixed => {
+        const isPaidThisMonth = (fixed.payments || []).includes(monthYear);
+
+        return `
+            <div class="debt-card">
+                <div class="debt-header">
+                    <div class="debt-title">
+                        <span>${fixed.icon || '🔄'}</span>
+                        <h4>${fixed.name}</h4>
+                    </div>
+                    <div class="debt-actions">
+                        <button class="btn-icon" onclick="window.editFixed('${fixed.id}')" title="Editar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon delete" onclick="window.deleteFixed('${fixed.id}')" title="Eliminar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="debt-info">
+                    <div class="debt-row">
+                        <span class="label">Monto mensual</span>
+                        <span class="value highlight">${formatCurrency(fixed.amount)}</span>
+                    </div>
+                    <div class="debt-row">
+                        <span class="label">Día de vencimiento</span>
+                        <span class="value">${fixed.dueDay || '-'}</span>
+                    </div>
+                </div>
+                <div class="debt-payment">
+                    <div class="debt-payment-info">
+                        <span class="next-payment">${isPaidThisMonth ? '✅ Pagado este mes' : '⏳ Pendiente'}</span>
+                    </div>
+                    <div class="payment-check ${isPaidThisMonth ? 'checked' : ''}" 
+                         onclick="window.handleFixedPayment('${fixed.id}', '${monthYear}')"
+                         title="${isPaidThisMonth ? 'Marcar como no pagado' : 'Marcar como pagado'}">
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderCalendar() {
@@ -861,6 +1049,38 @@ function openModal(type, data = null) {
                 <button type="submit" class="btn btn-primary">${data ? 'Actualizar' : 'Agregar'} Gasto</button>
             `;
             break;
+
+        case 'fixed':
+            title.textContent = data ? 'Editar Gasto Fijo' : 'Nuevo Gasto Fijo';
+            formHtml = `
+                <input type="hidden" id="edit-id" value="${data?.id || ''}">
+                <div class="form-group">
+                    <label for="fixed-icon">Icono</label>
+                    <select id="fixed-icon">
+                        <option value="🏠" ${data?.icon === '🏠' ? 'selected' : ''}>🏠 Arriendo/Vivienda</option>
+                        <option value="💡" ${data?.icon === '💡' ? 'selected' : ''}>💡 Servicios Públicos</option>
+                        <option value="📱" ${data?.icon === '📱' ? 'selected' : ''}>📱 Celular/Internet</option>
+                        <option value="🎬" ${data?.icon === '🎬' ? 'selected' : ''}>🎬 Suscripciones</option>
+                        <option value="🚗" ${data?.icon === '🚗' ? 'selected' : ''}>🚗 Transporte</option>
+                        <option value="🏋️" ${data?.icon === '🏋️' ? 'selected' : ''}>🏋️ Gimnasio</option>
+                        <option value="🔄" ${data?.icon === '🔄' ? 'selected' : ''}>🔄 Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fixed-name">Nombre del gasto fijo *</label>
+                    <input type="text" id="fixed-name" value="${data?.name || ''}" placeholder="Ej: Arriendo, Netflix" required>
+                </div>
+                <div class="form-group">
+                    <label for="fixed-amount">Monto mensual *</label>
+                    <input type="number" id="fixed-amount" value="${data?.amount || ''}" placeholder="Ej: 800000" required min="0">
+                </div>
+                <div class="form-group">
+                    <label for="fixed-due">Día de vencimiento (1-31) *</label>
+                    <input type="number" id="fixed-due" value="${data?.dueDay || ''}" placeholder="Ej: 10" required min="1" max="31">
+                </div>
+                <button type="submit" class="btn btn-primary">${data ? 'Actualizar' : 'Agregar'} Gasto Fijo</button>
+            `;
+            break;
     }
 
     form.innerHTML = formHtml;
@@ -927,6 +1147,27 @@ function handleFormSubmit(e) {
             const paymentMonthYear = document.getElementById('payment-month-year').value;
             const paymentAmount = parseFloat(document.getElementById('payment-amount').value);
             markPayment(paymentDebtId, paymentMonthYear, true, paymentAmount);
+            break;
+
+        case 'fixed':
+            const fixedData = {
+                icon: document.getElementById('fixed-icon').value,
+                name: document.getElementById('fixed-name').value,
+                amount: parseFloat(document.getElementById('fixed-amount').value),
+                dueDay: parseInt(document.getElementById('fixed-due').value)
+            };
+            if (editId) {
+                updateFixedExpense(editId, fixedData);
+            } else {
+                addFixedExpense(fixedData);
+            }
+            break;
+
+        case 'fixed-payment':
+            const fixedPaymentId = document.getElementById('fixed-payment-id').value;
+            const fixedPaymentMonth = document.getElementById('fixed-payment-month').value;
+            const fixedPaymentAmount = parseFloat(document.getElementById('fixed-payment-amount').value);
+            markFixedPayment(fixedPaymentId, fixedPaymentMonth, true, fixedPaymentAmount);
             break;
     }
 }
@@ -1038,6 +1279,7 @@ function setupEventListeners() {
     document.getElementById('add-debt-btn').addEventListener('click', () => openModal('debt'));
     document.getElementById('add-income-btn').addEventListener('click', () => openModal('income'));
     document.getElementById('add-expense-btn').addEventListener('click', () => openModal('expense'));
+    document.getElementById('add-fixed-btn').addEventListener('click', () => openModal('fixed'));
 
     // Modal
     document.getElementById('modal-close').addEventListener('click', closeModal);
@@ -1085,6 +1327,21 @@ window.editExpense = (id) => {
 };
 
 window.deleteExpense = deleteExpense;
+
+// Fixed Expenses globals
+window.handleFixedPayment = (fixedId, monthYear) => {
+    const fixed = state.fixedExpenses.find(f => f.id === fixedId);
+    if (!fixed) return;
+    const isPaid = (fixed.payments || []).includes(monthYear);
+    markFixedPayment(fixedId, monthYear, !isPaid);
+};
+
+window.editFixed = (id) => {
+    const item = state.fixedExpenses.find(f => f.id === id);
+    if (item) openModal('fixed', item);
+};
+
+window.deleteFixed = deleteFixedExpense;
 
 // ============================================
 // Initialize
