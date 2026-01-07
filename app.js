@@ -706,8 +706,10 @@ function renderAnalysis() {
     // Calculate totals for current month
     const monthExpenses = state.expenses.filter(e => {
         if (!e.date) return false;
-        const d = new Date(e.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        // Fix timezone issue: Parse YYYY-MM-DD strictly
+        const [year, month, day] = e.date.split('-').map(Number);
+        // Compare directly with current month/year
+        return (month - 1) === currentMonth && year === currentYear;
     });
 
     const monthIncome = state.income.reduce((sum, i) => sum + (i.amount || 0), 0);
