@@ -872,7 +872,7 @@ function renderAnalysis() {
 
     Object.entries(categoryTotals)
         .forEach(([cat, amount]) => {
-            const percentage = totalExpenses > 0 ? (amount / totalExpenses * 100) : 0;
+            const percentage = totalOutflow > 0 ? (amount / totalOutflow * 100) : 0;
             const angle = percentage * 3.6;
             const color = colors[colorIndex % colors.length];
 
@@ -896,7 +896,7 @@ function renderAnalysis() {
         conicGradient = conicGradient.slice(0, -2);
         document.getElementById('donut-chart').style.background = `conic-gradient(${conicGradient})`;
     }
-    document.getElementById('chart-total').textContent = formatCurrency(totalExpenses);
+    document.getElementById('chart-total').textContent = formatCurrency(totalOutflow);
     document.getElementById('chart-legend').innerHTML = legendHTML;
 
     // Generate category cards
