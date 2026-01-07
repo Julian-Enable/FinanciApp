@@ -1656,6 +1656,21 @@ body::before {
     width: 20px;
     height: 20px;
     stroke: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.payment-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.payment-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--text-secondary);
 }
 
 .category-percentage {
