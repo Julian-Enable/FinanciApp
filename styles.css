@@ -1328,20 +1328,52 @@ body::before {
         grid-template-columns: 1fr;
     }
 
-    .nav-item span {
-        display: none;
+    /* Compress Bottom Nav for small screens */
+    .bottom-nav {
+        height: 60px;
+        padding: 0 4px;
+        /* Reduced padding */
+        justify-content: space-between;
+        /* Space out evenly */
     }
 
     .nav-item {
         min-width: auto;
+        padding: 6px;
+        /* Smaller touch target padding */
     }
 
-    .bottom-nav {
-        height: 60px;
+    .nav-item span {
+        display: none;
+        /* Hide labels by default on small mobile */
+    }
+
+    .nav-item.active span {
+        display: block;
+        /* Optionally show only active label */
+        font-size: 10px;
     }
 
     .login-card {
         padding: var(--spacing-lg);
+    }
+
+    .app-header {
+        padding: 0 var(--spacing-md);
+        /* Ensure header padding matches main content */
+    }
+
+    .card-label {
+        font-size: 0.75rem;
+        /* Smaller text for dashboard cards */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        /* Slightly smaller big numbers */
     }
 }
 
