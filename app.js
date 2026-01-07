@@ -735,11 +735,11 @@ function renderAnalysis() {
     // PROJECTED INCOME CALCULATION
     // If we have salary income, we project it for the full month analysis
     // Strategy: Look for "Salario" category incomes in the current month
-    const salaryEntries = state.income.filter(i => {
-        if (!i.date) return false;
-        const [y, m] = i.date.split('-').map(Number);
-        return (m - 1) === currentMonth && y === currentYear && (i.category === '💼' || i.icon === '💼');
-    });
+    // Fix: Incomes don't have dates, they are treated as current month inputs.
+    // We look for 'Quincenal' frequency or 'Salario' keywords
+    const salaryIncomes = state.income.filter(i =>
+        (i.frequency === 'Quincenal' || (i.name && i.name.toLowerCase().includes('quincena')) || i.category === '💼' || i.icon === '💼')
+    );
 
     let projectedIncome = monthIncome;
 
@@ -747,9 +747,9 @@ function renderAnalysis() {
     // and we assume bi-weekly payments, we might project double if only one received.
     // Ideally, we should use a user setting, but for now let's be smart:
     // If total expenses > monthIncome but < (monthIncome + lastSalary), assume another salary coming
-    if (salaryEntries.length > 0 && totalObligations > monthIncome) {
+    if (salaryIncomes.length > 0 && totalObligations > monthIncome) {
         // Find the most recent salary amount (likely a bi-weekly payment)
-        const lastSalary = Math.max(...salaryEntries.map(s => s.amount));
+        const lastSalary = Math.max(...salaryIncomes.map(s => s.amount));
 
         // Naive projection: If received < obligations, assume we will receive at least one more salary chunk
         // This is a heuristic to fix the "Panic Red" dashboard early in the month
