@@ -923,43 +923,53 @@ function renderUpcomingPayments() {
     const container = document.getElementById('upcoming-payments-list');
     const now = new Date();
     const currentDay = now.getDate();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // Get unpaid debts due this month (no tienen abonos este mes)
+    // Get unpaid debts due this month
     const upcomingDebts = state.debts
         .filter(d => {
-            // Verificar si tiene abonos este mes en paymentHistory
             const monthPayments = (d.paymentHistory || []).filter(p => p.monthYear === monthYear);
-            const hasPaidThisMonth = monthPayments.length > 0;
-            return !hasPaidThisMonth && d.dueDay;
+            return monthPayments.length === 0 && d.dueDay;
         })
-        .sort((a, b) => a.dueDay - b.dueDay);
+        .map(d => ({ ...d, type: 'debt', payAmount: d.monthlyPayment }));
 
-    if (upcomingDebts.length === 0) {
+    // Get unpaid fixed expenses due this month
+    const upcomingFixed = state.fixedExpenses
+        .filter(f => {
+            const monthPayments = (f.paymentHistory || []).filter(p => p.monthYear === monthYear);
+            return monthPayments.length === 0 && f.dueDay;
+        })
+        .map(f => ({ ...f, type: 'fixed', payAmount: f.amount, icon: f.icon || ICONS.fixed }));
+
+    // Combine and sort by due day
+    const allUpcoming = [...upcomingDebts, ...upcomingFixed].sort((a, b) => a.dueDay - b.dueDay);
+
+    if (allUpcoming.length === 0) {
         container.innerHTML = '<p class="empty-state">No hay pagos próximos</p>';
         document.getElementById('upcoming-count').textContent = '0';
         return;
     }
 
-    document.getElementById('upcoming-count').textContent = upcomingDebts.length;
+    document.getElementById('upcoming-count').textContent = allUpcoming.length;
 
-    container.innerHTML = upcomingDebts.map(debt => {
-        const isOverdue = debt.dueDay < currentDay;
-        const isDueSoon = debt.dueDay - currentDay <= 3 && debt.dueDay >= currentDay;
+    container.innerHTML = allUpcoming.map(item => {
+        const isOverdue = item.dueDay < currentDay;
+        const isDueSoon = item.dueDay - currentDay <= 3 && item.dueDay >= currentDay;
         const statusClass = isOverdue ? 'overdue' : (isDueSoon ? 'due-soon' : '');
+        const typeLabel = item.type === 'fixed' ? 'Gasto Fijo' : 'Deuda';
+        const iconHtml = item.type === 'fixed' ? ICONS.fixed : (item.icon || ICONS.card);
 
         return `
             <div class="payment-item ${statusClass}">
                 <div class="payment-info">
-                    <span class="payment-icon">${debt.icon || '💳'}</span>
+                    <span class="payment-icon">${iconHtml}</span>
                     <div class="payment-details">
-                        <h4>${debt.name}</h4>
-                        <span>Vence el día ${debt.dueDay}</span>
+                        <h4>${item.name}</h4>
+                        <span>Vence día ${item.dueDay} · ${typeLabel}</span>
                     </div>
                 </div>
-                <span class="payment-amount">${formatCurrency(debt.monthlyPayment)}</span>
-                <div class="payment-check" onclick="window.handlePaymentCheck('${debt.id}', '${monthYear}')" title="Marcar como pagado">
+                <span class="payment-amount">${formatCurrency(item.payAmount)}</span>
+                <div class="payment-check" onclick="window.${item.type === 'fixed' ? 'handleFixedPayment' : 'handlePaymentCheck'}('${item.id}', '${monthYear}')" title="Registrar pago">
                 </div>
             </div>
         `;
