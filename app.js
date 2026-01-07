@@ -295,64 +295,78 @@ async function markPayment(debtId, monthYear, paid, customAmount = null) {
         if (!debt) return;
 
         let paymentHistory = debt.paymentHistory || [];
-        let payments = debt.payments || [];
 
         if (paid) {
-            // Si hay monto personalizado, abrimos modal
+            // Si no hay monto, abrimos modal para registrar abono
             if (customAmount === null) {
                 openPaymentModal(debtId, monthYear, debt.monthlyPayment);
                 return;
             }
 
-            // Agregar al historial de pagos
-            if (!payments.includes(monthYear)) {
-                payments.push(monthYear);
-                paymentHistory.push({
-                    monthYear,
-                    amount: customAmount,
-                    date: new Date().toISOString()
-                });
+            // Agregar nuevo abono al historial (permite múltiples por mes)
+            const paymentId = Date.now().toString();
+            paymentHistory.push({
+                id: paymentId,
+                monthYear,
+                amount: customAmount,
+                date: new Date().toISOString()
+            });
 
-                // Registrar automáticamente como gasto
-                await addDoc(collection(db, 'expenses'), {
-                    name: `Pago: ${debt.name}`,
-                    amount: customAmount,
-                    category: 'debt',
-                    date: new Date().toISOString().split('T')[0],
-                    userId: currentUser.uid,
-                    debtId: debtId,
-                    monthYear: monthYear,
-                    createdAt: serverTimestamp()
-                });
-            }
-        } else {
-            // Quitar del historial y eliminar el gasto asociado
-            payments = payments.filter(p => p !== monthYear);
-            paymentHistory = paymentHistory.filter(p => p.monthYear !== monthYear);
-
-            // Buscar y eliminar el gasto asociado
-            const expenseToDelete = state.expenses.find(e =>
-                e.debtId === debtId && e.monthYear === monthYear
-            );
-            if (expenseToDelete) {
-                await deleteDoc(doc(db, 'expenses', expenseToDelete.id));
-            }
+            // Registrar automáticamente como gasto
+            await addDoc(collection(db, 'expenses'), {
+                name: `Abono: ${debt.name}`,
+                amount: customAmount,
+                category: 'debt',
+                date: new Date().toISOString().split('T')[0],
+                userId: currentUser.uid,
+                debtId: debtId,
+                paymentId: paymentId,
+                monthYear: monthYear,
+                createdAt: serverTimestamp()
+            });
         }
 
         // Calcular total pagado basado en historial
         const paidAmount = paymentHistory.reduce((sum, p) => sum + (p.amount || 0), 0);
 
         await updateDoc(doc(db, 'debts', debtId), {
-            payments,
             paymentHistory,
             paidAmount
         });
 
-        showToast(paid ? 'Pago registrado como gasto' : 'Pago y gasto eliminados', 'success');
+        showToast('Abono registrado', 'success');
         closeModal();
     } catch (error) {
         console.error('Mark payment error:', error);
-        showToast('Error al registrar pago', 'error');
+        showToast('Error al registrar abono', 'error');
+    }
+}
+
+// Eliminar un abono específico
+async function deletePaymentEntry(debtId, paymentId) {
+    if (!confirm('¿Eliminar este abono?')) return;
+    try {
+        const debt = state.debts.find(d => d.id === debtId);
+        if (!debt) return;
+
+        let paymentHistory = (debt.paymentHistory || []).filter(p => p.id !== paymentId);
+        const paidAmount = paymentHistory.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        // Eliminar gasto asociado
+        const expenseToDelete = state.expenses.find(e => e.paymentId === paymentId);
+        if (expenseToDelete) {
+            await deleteDoc(doc(db, 'expenses', expenseToDelete.id));
+        }
+
+        await updateDoc(doc(db, 'debts', debtId), {
+            paymentHistory,
+            paidAmount
+        });
+
+        showToast('Abono eliminado', 'success');
+    } catch (error) {
+        console.error('Delete payment error:', error);
+        showToast('Error al eliminar abono', 'error');
     }
 }
 
@@ -501,7 +515,7 @@ async function markFixedPayment(fixedId, monthYear, paid, customAmount = null) {
         const fixed = state.fixedExpenses.find(f => f.id === fixedId);
         if (!fixed) return;
 
-        let payments = fixed.payments || [];
+        let paymentHistory = fixed.paymentHistory || [];
 
         if (paid) {
             // Si no hay monto, abrimos modal
@@ -510,39 +524,58 @@ async function markFixedPayment(fixedId, monthYear, paid, customAmount = null) {
                 return;
             }
 
-            if (!payments.includes(monthYear)) {
-                payments.push(monthYear);
+            // Agregar nuevo abono (permite múltiples por mes)
+            const paymentId = Date.now().toString();
+            paymentHistory.push({
+                id: paymentId,
+                monthYear,
+                amount: customAmount,
+                date: new Date().toISOString()
+            });
 
-                // Registrar automáticamente como gasto
-                await addDoc(collection(db, 'expenses'), {
-                    name: `${fixed.name}`,
-                    amount: customAmount,
-                    category: 'fixed',
-                    date: new Date().toISOString().split('T')[0],
-                    userId: currentUser.uid,
-                    fixedId: fixedId,
-                    monthYear: monthYear,
-                    createdAt: serverTimestamp()
-                });
-            }
-        } else {
-            payments = payments.filter(p => p !== monthYear);
-
-            // Eliminar gasto asociado
-            const expenseToDelete = state.expenses.find(e =>
-                e.fixedId === fixedId && e.monthYear === monthYear
-            );
-            if (expenseToDelete) {
-                await deleteDoc(doc(db, 'expenses', expenseToDelete.id));
-            }
+            // Registrar automáticamente como gasto
+            await addDoc(collection(db, 'expenses'), {
+                name: `${fixed.name}`,
+                amount: customAmount,
+                category: 'fixed',
+                date: new Date().toISOString().split('T')[0],
+                userId: currentUser.uid,
+                fixedId: fixedId,
+                paymentId: paymentId,
+                monthYear: monthYear,
+                createdAt: serverTimestamp()
+            });
         }
 
-        await updateDoc(doc(db, 'fixedExpenses', fixedId), { payments });
-        showToast(paid ? 'Pago registrado' : 'Pago desmarcado', 'success');
+        await updateDoc(doc(db, 'fixedExpenses', fixedId), { paymentHistory });
+        showToast('Abono registrado', 'success');
         closeModal();
     } catch (error) {
         console.error('Mark fixed payment error:', error);
-        showToast('Error al registrar pago', 'error');
+        showToast('Error al registrar abono', 'error');
+    }
+}
+
+// Eliminar un abono específico de gasto fijo
+async function deleteFixedPaymentEntry(fixedId, paymentId) {
+    if (!confirm('¿Eliminar este abono?')) return;
+    try {
+        const fixed = state.fixedExpenses.find(f => f.id === fixedId);
+        if (!fixed) return;
+
+        let paymentHistory = (fixed.paymentHistory || []).filter(p => p.id !== paymentId);
+
+        // Eliminar gasto asociado
+        const expenseToDelete = state.expenses.find(e => e.paymentId === paymentId);
+        if (expenseToDelete) {
+            await deleteDoc(doc(db, 'expenses', expenseToDelete.id));
+        }
+
+        await updateDoc(doc(db, 'fixedExpenses', fixedId), { paymentHistory });
+        showToast('Abono eliminado', 'success');
+    } catch (error) {
+        console.error('Delete fixed payment error:', error);
+        showToast('Error al eliminar abono', 'error');
     }
 }
 
@@ -654,11 +687,15 @@ function renderDebts() {
 
     const now = new Date();
     const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const monthName = now.toLocaleDateString('es-ES', { month: 'short' });
 
     container.innerHTML = state.debts.map(debt => {
         const progress = debt.totalAmount > 0 ? ((debt.paidAmount || 0) / debt.totalAmount * 100) : 0;
         const remaining = (debt.totalAmount || 0) - (debt.paidAmount || 0);
-        const isPaidThisMonth = (debt.payments || []).includes(monthYear);
+
+        // Obtener abonos de este mes
+        const monthPayments = (debt.paymentHistory || []).filter(p => p.monthYear === monthYear);
+        const monthTotal = monthPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
         return `
             <div class="debt-card">
@@ -688,7 +725,7 @@ function renderDebts() {
                         <span class="value">${formatCurrency(debt.totalAmount)}</span>
                     </div>
                     <div class="debt-row">
-                        <span class="label">Pago mensual</span>
+                        <span class="label">Cuota mensual</span>
                         <span class="value">${formatCurrency(debt.monthlyPayment)}</span>
                     </div>
                     <div class="debt-row">
@@ -700,14 +737,23 @@ function renderDebts() {
                     <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
                 </div>
                 <span class="progress-text">${progress.toFixed(1)}% pagado</span>
-                <div class="debt-payment">
-                    <div class="debt-payment-info">
-                        <span class="next-payment">Día de pago: ${debt.dueDay || '-'}</span>
+                
+                <div class="month-payments">
+                    <div class="month-payments-header">
+                        <span>📅 Abonos ${monthName.toUpperCase()}: ${formatCurrency(monthTotal)}</span>
+                        <button class="btn btn-sm btn-success" onclick="window.addPayment('${debt.id}', '${monthYear}')">+ Abonar</button>
                     </div>
-                    <div class="payment-check ${isPaidThisMonth ? 'checked' : ''}" 
-                         onclick="window.handlePaymentCheck('${debt.id}', '${monthYear}')"
-                         title="${isPaidThisMonth ? 'Marcar como no pagado' : 'Marcar como pagado'}">
-                    </div>
+                    ${monthPayments.length > 0 ? `
+                        <div class="payments-list-mini">
+                            ${monthPayments.map(p => `
+                                <div class="payment-entry">
+                                    <span class="payment-entry-date">${new Date(p.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                                    <span class="payment-entry-amount">${formatCurrency(p.amount)}</span>
+                                    <button class="btn-icon-mini delete" onclick="window.deletePayment('${debt.id}', '${p.id}')" title="Eliminar">×</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="no-payments">Sin abonos este mes</p>'}
                 </div>
             </div>
         `;
@@ -817,9 +863,12 @@ function renderFixedExpenses() {
 
     const now = new Date();
     const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const monthName = now.toLocaleDateString('es-ES', { month: 'short' });
 
     container.innerHTML = state.fixedExpenses.map(fixed => {
-        const isPaidThisMonth = (fixed.payments || []).includes(monthYear);
+        // Obtener abonos de este mes
+        const monthPayments = (fixed.paymentHistory || []).filter(p => p.monthYear === monthYear);
+        const monthTotal = monthPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
         return `
             <div class="debt-card">
@@ -853,14 +902,23 @@ function renderFixedExpenses() {
                         <span class="value">${fixed.dueDay || '-'}</span>
                     </div>
                 </div>
-                <div class="debt-payment">
-                    <div class="debt-payment-info">
-                        <span class="next-payment">${isPaidThisMonth ? '✅ Pagado este mes' : '⏳ Pendiente'}</span>
+                
+                <div class="month-payments">
+                    <div class="month-payments-header">
+                        <span>📅 Abonos ${monthName.toUpperCase()}: ${formatCurrency(monthTotal)}</span>
+                        <button class="btn btn-sm btn-success" onclick="window.addFixedPayment('${fixed.id}', '${monthYear}')">+ Abonar</button>
                     </div>
-                    <div class="payment-check ${isPaidThisMonth ? 'checked' : ''}" 
-                         onclick="window.handleFixedPayment('${fixed.id}', '${monthYear}')"
-                         title="${isPaidThisMonth ? 'Marcar como no pagado' : 'Marcar como pagado'}">
-                    </div>
+                    ${monthPayments.length > 0 ? `
+                        <div class="payments-list-mini">
+                            ${monthPayments.map(p => `
+                                <div class="payment-entry">
+                                    <span class="payment-entry-date">${new Date(p.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                                    <span class="payment-entry-amount">${formatCurrency(p.amount)}</span>
+                                    <button class="btn-icon-mini delete" onclick="window.deleteFixedPayment('${fixed.id}', '${p.id}')" title="Eliminar">×</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="no-payments">Sin abonos este mes</p>'}
                 </div>
             </div>
         `;
@@ -1328,12 +1386,30 @@ window.editExpense = (id) => {
 
 window.deleteExpense = deleteExpense;
 
+// Debt payment globals
+window.addPayment = (debtId, monthYear) => {
+    const debt = state.debts.find(d => d.id === debtId);
+    if (debt) openPaymentModal(debtId, monthYear, debt.monthlyPayment);
+};
+
+window.deletePayment = deletePaymentEntry;
+
+window.handlePaymentCheck = (debtId, monthYear) => {
+    const debt = state.debts.find(d => d.id === debtId);
+    if (debt) openPaymentModal(debtId, monthYear, debt.monthlyPayment);
+};
+
 // Fixed Expenses globals
+window.addFixedPayment = (fixedId, monthYear) => {
+    const fixed = state.fixedExpenses.find(f => f.id === fixedId);
+    if (fixed) openFixedPaymentModal(fixedId, monthYear, fixed.amount);
+};
+
+window.deleteFixedPayment = deleteFixedPaymentEntry;
+
 window.handleFixedPayment = (fixedId, monthYear) => {
     const fixed = state.fixedExpenses.find(f => f.id === fixedId);
-    if (!fixed) return;
-    const isPaid = (fixed.payments || []).includes(monthYear);
-    markFixedPayment(fixedId, monthYear, !isPaid);
+    if (fixed) openFixedPaymentModal(fixedId, monthYear, fixed.amount);
 };
 
 window.editFixed = (id) => {
