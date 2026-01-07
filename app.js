@@ -697,11 +697,13 @@ function renderUpcomingPayments() {
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // Get unpaid debts due this month
+    // Get unpaid debts due this month (no tienen abonos este mes)
     const upcomingDebts = state.debts
         .filter(d => {
-            const isPaid = (d.payments || []).includes(monthYear);
-            return !isPaid && d.dueDay;
+            // Verificar si tiene abonos este mes en paymentHistory
+            const monthPayments = (d.paymentHistory || []).filter(p => p.monthYear === monthYear);
+            const hasPaidThisMonth = monthPayments.length > 0;
+            return !hasPaidThisMonth && d.dueDay;
         })
         .sort((a, b) => a.dueDay - b.dueDay);
 
@@ -739,7 +741,7 @@ function renderDebts() {
     const container = document.getElementById('debts-list');
 
     if (state.debts.length === 0) {
-        container.innerHTML = '<p class="empty-state">No tienes deudas registradas. ¡Muy bien! 🎉</p>';
+        container.innerHTML = '<p class="empty-state">No tienes deudas registradas</p>';
         return;
     }
 
