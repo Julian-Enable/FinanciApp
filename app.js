@@ -1422,9 +1422,7 @@ function setupEventListeners() {
 // ============================================
 window.handlePaymentCheck = (debtId, monthYear) => {
     const debt = state.debts.find(d => d.id === debtId);
-    if (!debt) return;
-    const isPaid = (debt.payments || []).includes(monthYear);
-    markPayment(debtId, monthYear, !isPaid);
+    if (debt) openPaymentModal(debtId, monthYear, debt.monthlyPayment);
 };
 
 window.editDebt = (id) => {
