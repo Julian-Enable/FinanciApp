@@ -845,10 +845,23 @@ function renderAnalysis() {
 
     // Calculate expenses by category
     const categoryTotals = {};
+
+    // Add real variable expenses
     monthExpenses.forEach(e => {
+        // Exclude debt/fixed related expenses as we will add the TOTAL obligations manually
+        if (e.category === 'debt' || e.category === 'fixed' || e.debtId || e.fixedId) return;
+
         const cat = e.category || 'other';
         categoryTotals[cat] = (categoryTotals[cat] || 0) + (e.amount || 0);
     });
+
+    // Add TOTAL OBLIGATIONS to the analysis (Debts + Fixed)
+    // This ensures the chart and recommendations reflect the committed money, not just what's been paid
+    if (totalDebtObligations > 0) categoryTotals['debt'] = (categoryTotals['debt'] || 0) + totalDebtObligations;
+    if (totalFixedObligations > 0) categoryTotals['fixed'] = (categoryTotals['fixed'] || 0) + totalFixedObligations;
+
+    const categories = [];
+    const dangers = [];
 
     // Generate donut chart
     const colors = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
@@ -858,7 +871,6 @@ function renderAnalysis() {
     let colorIndex = 0;
 
     Object.entries(categoryTotals)
-        .sort((a, b) => b[1] - a[1])
         .forEach(([cat, amount]) => {
             const percentage = totalExpenses > 0 ? (amount / totalExpenses * 100) : 0;
             const angle = percentage * 3.6;
