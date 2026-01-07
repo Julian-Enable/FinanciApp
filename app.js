@@ -706,181 +706,183 @@ window.changeAnalysisMonth = (offset) => {
 };
 
 function renderAnalysis() {
-    const now = state.currentAnalysisDate;
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    try {
+        const now = state.currentAnalysisDate;
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
 
-    // Set month label
-    const monthLabel = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-    document.getElementById('analysis-month').textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+        // Set month label
+        const monthLabel = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        document.getElementById('analysis-month').textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
-    // Calculate totals for current month
-    const monthExpenses = state.expenses.filter(e => {
-        if (!e.date) return false;
-        // Fix timezone issue: Parse YYYY-MM-DD strictly
-        const [year, month, day] = e.date.split('-').map(Number);
-        // Compare directly with current month/year
-        return (month - 1) === currentMonth && year === currentYear;
-    });
+        // Calculate totals for current month
+        const monthExpenses = state.expenses.filter(e => {
+            if (!e.date) return false;
+            // Fix timezone issue: Parse YYYY-MM-DD strictly
+            const [year, month, day] = e.date.split('-').map(Number);
+            // Compare directly with current month/year
+            return (month - 1) === currentMonth && year === currentYear;
+        });
 
-    const monthIncome = state.income.reduce((sum, i) => sum + (i.amount || 0), 0);
+        const monthIncome = state.income.reduce((sum, i) => sum + (i.amount || 0), 0);
 
-    // Fix: Exclude Debt Payments and Fixed Expense Payments from Variable Expenses 
-    // to avoid double counting with "Total Obligations"
-    const variableExpenses = monthExpenses.reduce((sum, e) => {
-        if (e.category === 'debt' || e.category === 'fixed' || e.debtId || e.fixedId) return sum;
-        return sum + (e.amount || 0);
-    }, 0);
+        // Fix: Exclude Debt Payments and Fixed Expense Payments from Variable Expenses 
+        // to avoid double counting with "Total Obligations"
+        const variableExpenses = monthExpenses.reduce((sum, e) => {
+            if (e.category === 'debt' || e.category === 'fixed' || e.debtId || e.fixedId) return sum;
+            return sum + Number(e.amount || 0);
+        }, 0);
 
-    // Calculate Monthly Obligations (Fixed Expenses + Debt Payments)
-    // We assume these are monthly commitments regardless of payment status
-    const totalFixedObligations = state.fixedExpenses.reduce((sum, f) => sum + (f.amount || 0), 0);
-    const totalDebtObligations = state.debts.reduce((sum, d) => sum + (d.monthlyPayment || 0), 0);
-    const totalObligations = totalFixedObligations + totalDebtObligations;
+        // Calculate Monthly Obligations (Fixed Expenses + Debt Payments)
+        // We assume these are monthly commitments regardless of payment status
+        // Fix: Use Number() to prevent string concatenation if values come as strings from DB
+        const totalFixedObligations = state.fixedExpenses.reduce((sum, f) => sum + Number(f.amount || 0), 0);
+        const totalDebtObligations = state.debts.reduce((sum, d) => sum + Number(d.monthlyPayment || 0), 0);
+        const totalObligations = totalFixedObligations + totalDebtObligations;
 
-    // PROJECTED INCOME CALCULATION
-    // If we have salary income, we project it for the full month analysis
-    // Strategy: Look for "Salario" category incomes in the current month
-    // Fix: Incomes don't have dates, they are treated as current month inputs.
-    // We look for 'Quincenal' frequency or 'Salario' keywords
-    const salaryIncomes = state.income.filter(i =>
-        (i.frequency === 'Quincenal' || (i.name && i.name.toLowerCase().includes('quincena')) || i.category === '💼' || i.icon === '💼')
-    );
+        // PROJECTED INCOME CALCULATION
+        // If we have salary income, we project it for the full month analysis
+        // Strategy: Look for "Salario" category incomes in the current month
+        // Fix: Incomes don't have dates, they are treated as current month inputs.
+        // We look for 'Quincenal' frequency or 'Salario' keywords
+        const salaryIncomes = state.income.filter(i =>
+            (i.frequency === 'Quincenal' || (i.name && i.name.toLowerCase().includes('quincena')) || i.category === '💼' || i.icon === '💼')
+        );
 
-    let projectedIncome = monthIncome;
+        let projectedIncome = monthIncome;
 
-    // If we have at least one salary entry and it's early in the month (be fore 20th), 
-    // and we assume bi-weekly payments, we might project double if only one received.
-    // Ideally, we should use a user setting, but for now let's be smart:
-    // If total expenses > monthIncome but < (monthIncome + lastSalary), assume another salary coming
-    if (salaryIncomes.length > 0 && totalObligations > monthIncome) {
-        // Find the most recent salary amount (likely a bi-weekly payment)
-        const lastSalary = Math.max(...salaryIncomes.map(s => s.amount));
+        // If we have at least one salary entry and it's early in the month (be fore 20th), 
+        // and we assume bi-weekly payments, we might project double if only one received.
+        // Ideally, we should use a user setting, but for now let's be smart:
+        // If total expenses > monthIncome but < (monthIncome + lastSalary), assume another salary coming
+        if (salaryIncomes.length > 0 && totalObligations > monthIncome) {
+            // Find the most recent salary amount (likely a bi-weekly payment)
+            const lastSalary = Math.max(...salaryIncomes.map(s => s.amount));
 
-        // Naive projection: If received < obligations, assume we will receive at least one more salary chunk
-        // This is a heuristic to fix the "Panic Red" dashboard early in the month
-        projectedIncome += lastSalary;
-    }
+            // Naive projection: If received < obligations, assume we will receive at least one more salary chunk
+            // This is a heuristic to fix the "Panic Red" dashboard early in the month
+            projectedIncome += lastSalary;
+        }
 
-    // Use Projected Income for Financial Health Ratios (Debt Ratio & CashFlow Projection)
-    // But show Actual Income in the top summary for transparency
+        // Use Projected Income for Financial Health Ratios (Debt Ratio & CashFlow Projection)
+        // But show Actual Income in the top summary for transparency
 
-    // Total Monthly Outflow (Variable + Obligations)
-    const totalOutflow = variableExpenses + totalObligations;
+        // Total Monthly Outflow (Variable + Obligations)
+        const totalOutflow = variableExpenses + totalObligations;
 
-    // Financial Metrics based on PROJECTION to be realistic
-    const freeCashFlow = projectedIncome - totalOutflow;
-    // Spending % still based on REAL income for tracking, or Projected? 
-    // Let's use Projected for the "Health" status, but show real percentage relative to what we HAVE.
-    const spendingPercentage = projectedIncome > 0 ? (totalOutflow / projectedIncome * 100) : 0;
-    const debtRatio = projectedIncome > 0 ? (totalObligations / projectedIncome * 100) : 0;
+        // Financial Metrics based on PROJECTION to be realistic
+        const freeCashFlow = projectedIncome - totalOutflow;
+        // Spending % still based on REAL income for tracking, or Projected? 
+        // Let's use Projected for the "Health" status, but show real percentage relative to what we HAVE.
+        const spendingPercentage = projectedIncome > 0 ? (totalOutflow / projectedIncome * 100) : 0;
+        const debtRatio = projectedIncome > 0 ? (totalObligations / projectedIncome * 100) : 0;
 
-    // Update summary with Professional view
-    // Show Actual Income but with an indicator if projected is different
-    const incomeLabel = projectedIncome > monthIncome ? `Ingresos (Proy. ${formatCurrency(projectedIncome)})` : 'Ingresos Totales';
+        // Update summary with Professional view
+        // Show Actual Income but with an indicator if projected is different
+        const incomeLabel = projectedIncome > monthIncome ? `Ingresos (Proy. ${formatCurrency(projectedIncome)})` : 'Ingresos Totales';
 
-    // Find label element or update text directly
-    const incomeStat = document.getElementById('analysis-income').parentElement;
-    if (incomeStat) incomeStat.querySelector('.stat-label').textContent = incomeLabel;
+        // Find label element or update text directly
+        const incomeStat = document.getElementById('analysis-income').parentElement;
+        if (incomeStat) incomeStat.querySelector('.stat-label').textContent = incomeLabel;
 
-    document.getElementById('analysis-income').textContent = formatCurrency(monthIncome);
-    document.getElementById('analysis-expenses').textContent = formatCurrency(totalOutflow);
+        document.getElementById('analysis-income').textContent = formatCurrency(monthIncome);
+        document.getElementById('analysis-expenses').textContent = formatCurrency(totalOutflow);
 
-    // Cash Flow styling
-    const cashFlowEl = document.getElementById('analysis-cashflow');
-    cashFlowEl.textContent = formatCurrency(freeCashFlow);
-    cashFlowEl.style.color = freeCashFlow >= 0 ? 'var(--accent-secondary)' : 'var(--accent-danger)';
+        // Cash Flow styling
+        const cashFlowEl = document.getElementById('analysis-cashflow');
+        cashFlowEl.textContent = formatCurrency(freeCashFlow);
+        cashFlowEl.style.color = freeCashFlow >= 0 ? 'var(--accent-secondary)' : 'var(--accent-danger)';
 
-    // Update Professional Metrics Cards
-    document.getElementById('metric-obligations').textContent = formatCurrency(totalObligations);
-    document.getElementById('metric-variable').textContent = formatCurrency(variableExpenses);
+        // Update Professional Metrics Cards
+        document.getElementById('metric-obligations').textContent = formatCurrency(totalObligations);
+        document.getElementById('metric-variable').textContent = formatCurrency(variableExpenses);
 
-    // Debt Ratio Logic
-    const debtRatioEl = document.getElementById('metric-debt-ratio');
-    const debtStatusEl = document.getElementById('metric-debt-status');
-    debtRatioEl.textContent = `${Math.round(debtRatio)}%`;
+        // Debt Ratio Logic
+        const debtRatioEl = document.getElementById('metric-debt-ratio');
+        const debtStatusEl = document.getElementById('metric-debt-status');
+        debtRatioEl.textContent = `${Math.round(debtRatio)}%`;
 
-    if (debtRatio <= 30) {
-        debtRatioEl.style.color = 'var(--accent-secondary)';
-        debtStatusEl.textContent = 'Endeudamiento Saludable';
-    } else if (debtRatio <= 45) {
-        debtRatioEl.style.color = 'var(--accent-warning)';
-        debtStatusEl.textContent = 'Endeudamiento Moderado';
-    } else {
-        debtRatioEl.style.color = 'var(--accent-danger)';
-        debtStatusEl.textContent = 'Alto Endeudamiento';
-    }
+        if (debtRatio <= 30) {
+            debtRatioEl.style.color = 'var(--accent-secondary)';
+            debtStatusEl.textContent = 'Endeudamiento Saludable';
+        } else if (debtRatio <= 45) {
+            debtRatioEl.style.color = 'var(--accent-warning)';
+            debtStatusEl.textContent = 'Endeudamiento Moderado';
+        } else {
+            debtRatioEl.style.color = 'var(--accent-danger)';
+            debtStatusEl.textContent = 'Alto Endeudamiento';
+        }
 
-    document.getElementById('analysis-percentage').textContent = `${Math.round(spendingPercentage)}%`;
+        document.getElementById('analysis-percentage').textContent = `${Math.round(spendingPercentage)}%`;
 
-    // Update spending bar
-    const spendingFill = document.getElementById('spending-fill');
-    const cappedPercentage = Math.min(spendingPercentage, 100);
-    spendingFill.style.width = `${cappedPercentage}%`;
+        // Update spending bar
+        const spendingFill = document.getElementById('spending-fill');
+        const cappedPercentage = Math.min(spendingPercentage, 100);
+        spendingFill.style.width = `${cappedPercentage}%`;
 
-    // Status text based on Cash Flow
-    const statusText = document.getElementById('spending-status');
-    if (freeCashFlow > monthIncome * 0.2) { // Saving > 20%
-        spendingFill.style.background = 'var(--accent-secondary)';
-        statusText.textContent = `Excelente: Tienes ${formatCurrency(freeCashFlow)} disponibles para ahorro/inversión`;
-    } else if (freeCashFlow >= 0) {
-        spendingFill.style.background = 'var(--accent-warning)';
-        statusText.textContent = `Balanceado: Te quedan ${formatCurrency(freeCashFlow)} libres`;
-    } else {
-        spendingFill.style.background = 'var(--accent-danger)';
-        statusText.textContent = `Déficit: Estás gastando ${formatCurrency(Math.abs(freeCashFlow))} más de lo que ganas`;
-    }
+        // Status text based on Cash Flow
+        const statusText = document.getElementById('spending-status');
+        if (freeCashFlow > monthIncome * 0.2) { // Saving > 20%
+            spendingFill.style.background = 'var(--accent-secondary)';
+            statusText.textContent = `Excelente: Tienes ${formatCurrency(freeCashFlow)} disponibles para ahorro/inversión`;
+        } else if (freeCashFlow >= 0) {
+            spendingFill.style.background = 'var(--accent-warning)';
+            statusText.textContent = `Balanceado: Te quedan ${formatCurrency(freeCashFlow)} libres`;
+        } else {
+            spendingFill.style.background = 'var(--accent-danger)';
+            statusText.textContent = `Déficit: Estás gastando ${formatCurrency(Math.abs(freeCashFlow))} más de lo que ganas`;
+        }
 
-    // Category analysis with recommended limits
-    const categoryConfig = {
-        debt: { name: 'Deudas/Créditos', icon: ICONS.card, limit: 35, essential: true },
-        fixed: { name: 'Gastos Fijos', icon: ICONS.fixed, limit: 30, essential: true },
-        food: { name: 'Comida', icon: ICONS.food, limit: 15, essential: true },
-        transport: { name: 'Transporte', icon: ICONS.transport, limit: 10, essential: true },
-        entertainment: { name: 'Entretenimiento', icon: ICONS.entertainment, limit: 5, essential: false },
-        services: { name: 'Servicios', icon: ICONS.services, limit: 5, essential: false },
-        health: { name: 'Salud', icon: ICONS.health, limit: 10, essential: true },
-        other: { name: 'Otros', icon: ICONS.package, limit: 10, essential: false }
-    };
+        // Category analysis with recommended limits
+        const categoryConfig = {
+            debt: { name: 'Deudas/Créditos', icon: ICONS.card, limit: 35, essential: true },
+            fixed: { name: 'Gastos Fijos', icon: ICONS.fixed, limit: 30, essential: true },
+            food: { name: 'Comida', icon: ICONS.food, limit: 15, essential: true },
+            transport: { name: 'Transporte', icon: ICONS.transport, limit: 10, essential: true },
+            entertainment: { name: 'Entretenimiento', icon: ICONS.entertainment, limit: 5, essential: false },
+            services: { name: 'Servicios', icon: ICONS.services, limit: 5, essential: false },
+            health: { name: 'Salud', icon: ICONS.health, limit: 10, essential: true },
+            other: { name: 'Otros', icon: ICONS.package, limit: 10, essential: false }
+        };
 
-    // Calculate expenses by category
-    const categoryTotals = {};
+        // Calculate expenses by category
+        const categoryTotals = {};
 
-    // Add real variable expenses
-    monthExpenses.forEach(e => {
-        // Exclude debt/fixed related expenses as we will add the TOTAL obligations manually
-        if (e.category === 'debt' || e.category === 'fixed' || e.debtId || e.fixedId) return;
+        // Add real variable expenses
+        monthExpenses.forEach(e => {
+            // Exclude debt/fixed related expenses as we will add the TOTAL obligations manually
+            if (e.category === 'debt' || e.category === 'fixed' || e.debtId || e.fixedId) return;
 
-        const cat = e.category || 'other';
-        categoryTotals[cat] = (categoryTotals[cat] || 0) + (e.amount || 0);
-    });
+            const cat = e.category || 'other';
+            categoryTotals[cat] = (categoryTotals[cat] || 0) + (e.amount || 0);
+        });
 
-    // Add TOTAL OBLIGATIONS to the analysis (Debts + Fixed)
-    // This ensures the chart and recommendations reflect the committed money, not just what's been paid
-    if (totalDebtObligations > 0) categoryTotals['debt'] = (categoryTotals['debt'] || 0) + totalDebtObligations;
-    if (totalFixedObligations > 0) categoryTotals['fixed'] = (categoryTotals['fixed'] || 0) + totalFixedObligations;
+        // Add TOTAL OBLIGATIONS to the analysis (Debts + Fixed)
+        // This ensures the chart and recommendations reflect the committed money, not just what's been paid
+        if (totalDebtObligations > 0) categoryTotals['debt'] = (categoryTotals['debt'] || 0) + totalDebtObligations;
+        if (totalFixedObligations > 0) categoryTotals['fixed'] = (categoryTotals['fixed'] || 0) + totalFixedObligations;
 
-    const categories = [];
-    const dangers = [];
+        const categories = [];
+        const dangers = [];
 
-    // Generate donut chart
-    const colors = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
-    let conicGradient = '';
-    let currentAngle = 0;
-    let legendHTML = '';
-    let colorIndex = 0;
+        // Generate donut chart
+        const colors = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
+        let conicGradient = '';
+        let currentAngle = 0;
+        let legendHTML = '';
+        let colorIndex = 0;
 
-    Object.entries(categoryTotals)
-        .forEach(([cat, amount]) => {
-            const percentage = totalOutflow > 0 ? (amount / totalOutflow * 100) : 0;
-            const angle = percentage * 3.6;
-            const color = colors[colorIndex % colors.length];
+        Object.entries(categoryTotals)
+            .forEach(([cat, amount]) => {
+                const percentage = totalOutflow > 0 ? (amount / totalOutflow * 100) : 0;
+                const angle = percentage * 3.6;
+                const color = colors[colorIndex % colors.length];
 
-            conicGradient += `${color} ${currentAngle}deg ${currentAngle + angle}deg, `;
-            currentAngle += angle;
+                conicGradient += `${color} ${currentAngle}deg ${currentAngle + angle}deg, `;
+                currentAngle += angle;
 
-            const config = categoryConfig[cat] || { name: cat, icon: ICONS.package };
-            legendHTML += `
+                const config = categoryConfig[cat] || { name: cat, icon: ICONS.package };
+                legendHTML += `
                 <div class="legend-item-analysis">
                     <span class="legend-color" style="background: ${color}"></span>
                     <span class="legend-text">
@@ -889,71 +891,71 @@ function renderAnalysis() {
                     </span>
                 </div>
             `;
-            colorIndex++;
-        });
+                colorIndex++;
+            });
 
-    if (conicGradient) {
-        conicGradient = conicGradient.slice(0, -2);
-        document.getElementById('donut-chart').style.background = `conic-gradient(${conicGradient})`;
-    }
-    document.getElementById('chart-total').textContent = formatCurrency(totalOutflow);
-    document.getElementById('chart-legend').innerHTML = legendHTML;
-
-    // Generate category cards
-    // Generate category cards
-    const cardsContainer = document.getElementById('category-cards');
-    let cardsHTML = '';
-    // Reset arrays for processing
-    warnings = []; // Assuming warnings was meant to be used or declared? Wait, warnings wasn't declared above.
-    // Dangers WAS declared above.
-    // Let's check if 'warnings' is declared above. It is NOT in the view I saw (850-910).
-    // So 'let warnings = []' is fine. 'let dangers = []' is the error.
-
-    // HOWEVER, I should better remove the top declaration if I want to keep it here, OR remove the 'let' here.
-    // The top declaration (line 864) is needed ? No, it's used at line 948 (health check). The Loop at 908 populates it.
-    // So I MUST declare it at the top (864) and just reset it here? No need to reset if I just declared it empty at 864 and didn't touch it.
-    // But wait, did I use it between 864 and 906? No.
-    // So removing 'let' at 906 is correct (effectively a reset, though redundant if empty).
-    // ACTUALLY, line 905 'let warnings = []'.
-    // Let's look at line 864: 'const categories = []; const dangers = [];'
-    // I changed 864 to 'const dangers = []' in previous turn? 
-    // Wait, step 1109 shows: 
-    // -    const categories = [];
-    // -    const dangers = [];
-    // I REMOVED them in step 1109 block?
-    // Let's re-read the file view in step 1130.
-    // Line 863: const categories = [];
-    // Line 864: const dangers = [];
-    // Line 906: let dangers = [];
-    // Syntax Error: Identifier 'dangers' has already been declared.
-    // FIX: Remove line 906 declaration.
-
-    let warnings = [];
-    // dangers is already declared at line 864.
-
-    Object.entries(categoryConfig).forEach(([cat, config]) => {
-        const amount = categoryTotals[cat] || 0;
-        const percentageOfIncome = monthIncome > 0 ? (amount / monthIncome * 100) : 0;
-
-        let status, statusClass, recommendation;
-        if (percentageOfIncome <= config.limit * 0.7) {
-            status = 'good';
-            statusClass = 'status-good';
-            recommendation = 'Dentro del presupuesto ideal';
-        } else if (percentageOfIncome <= config.limit) {
-            status = 'warning';
-            statusClass = 'status-warning';
-            recommendation = `Cerca del límite (${config.limit}%)`;
-            if (!config.essential) warnings.push(config.name);
-        } else {
-            status = 'danger';
-            statusClass = 'status-danger';
-            recommendation = `Excede el límite recomendado de ${config.limit}%`;
-            dangers.push({ name: config.name, excess: percentageOfIncome - config.limit, essential: config.essential });
+        if (conicGradient) {
+            conicGradient = conicGradient.slice(0, -2);
+            document.getElementById('donut-chart').style.background = `conic-gradient(${conicGradient})`;
         }
+        document.getElementById('chart-total').textContent = formatCurrency(totalOutflow);
+        document.getElementById('chart-legend').innerHTML = legendHTML;
 
-        if (amount > 0) {
-            cardsHTML += `
+        // Generate category cards
+        // Generate category cards
+        const cardsContainer = document.getElementById('category-cards');
+        let cardsHTML = '';
+        // Reset arrays for processing
+        warnings = []; // Assuming warnings was meant to be used or declared? Wait, warnings wasn't declared above.
+        // Dangers WAS declared above.
+        // Let's check if 'warnings' is declared above. It is NOT in the view I saw (850-910).
+        // So 'let warnings = []' is fine. 'let dangers = []' is the error.
+
+        // HOWEVER, I should better remove the top declaration if I want to keep it here, OR remove the 'let' here.
+        // The top declaration (line 864) is needed ? No, it's used at line 948 (health check). The Loop at 908 populates it.
+        // So I MUST declare it at the top (864) and just reset it here? No need to reset if I just declared it empty at 864 and didn't touch it.
+        // But wait, did I use it between 864 and 906? No.
+        // So removing 'let' at 906 is correct (effectively a reset, though redundant if empty).
+        // ACTUALLY, line 905 'let warnings = []'.
+        // Let's look at line 864: 'const categories = []; const dangers = [];'
+        // I changed 864 to 'const dangers = []' in previous turn? 
+        // Wait, step 1109 shows: 
+        // -    const categories = [];
+        // -    const dangers = [];
+        // I REMOVED them in step 1109 block?
+        // Let's re-read the file view in step 1130.
+        // Line 863: const categories = [];
+        // Line 864: const dangers = [];
+        // Line 906: let dangers = [];
+        // Syntax Error: Identifier 'dangers' has already been declared.
+        // FIX: Remove line 906 declaration.
+
+        let warnings = [];
+        // dangers is already declared at line 864.
+
+        Object.entries(categoryConfig).forEach(([cat, config]) => {
+            const amount = categoryTotals[cat] || 0;
+            const percentageOfIncome = monthIncome > 0 ? (amount / monthIncome * 100) : 0;
+
+            let status, statusClass, recommendation;
+            if (percentageOfIncome <= config.limit * 0.7) {
+                status = 'good';
+                statusClass = 'status-good';
+                recommendation = 'Dentro del presupuesto ideal';
+            } else if (percentageOfIncome <= config.limit) {
+                status = 'warning';
+                statusClass = 'status-warning';
+                recommendation = `Cerca del límite (${config.limit}%)`;
+                if (!config.essential) warnings.push(config.name);
+            } else {
+                status = 'danger';
+                statusClass = 'status-danger';
+                recommendation = `Excede el límite recomendado de ${config.limit}%`;
+                dangers.push({ name: config.name, excess: percentageOfIncome - config.limit, essential: config.essential });
+            }
+
+            if (amount > 0) {
+                cardsHTML += `
                 <div class="category-card ${statusClass}">
                     <div class="category-header">
                         <span class="category-name">
@@ -972,82 +974,89 @@ function renderAnalysis() {
                     <div class="category-recommendation ${status}">${recommendation}</div>
                 </div>
             `;
+            }
+        });
+        cardsContainer.innerHTML = cardsHTML || '<p class="empty-state">No hay gastos este mes para analizar</p>';
+
+        // Generate health indicator and recommendations
+        const healthIndicator = document.getElementById('health-indicator');
+        const healthTitle = document.getElementById('health-title');
+        const healthDescription = document.getElementById('health-description');
+        const recommendationsContainer = document.getElementById('recommendations');
+
+        let healthClass, healthIcon;
+        if (spendingPercentage <= 50 && dangers.length === 0) {
+            healthClass = 'excellent';
+            healthIcon = ICONS.check;
+            healthTitle.textContent = 'Excelente Salud Financiera';
+            healthDescription.textContent = 'Estás ahorrando más del 50% de tus ingresos. ¡Sigue así!';
+        } else if (spendingPercentage <= 70 && dangers.length === 0) {
+            healthClass = 'good';
+            healthIcon = ICONS.check;
+            healthTitle.textContent = 'Buena Salud Financiera';
+            healthDescription.textContent = 'Tienes un balance saludable entre ingresos y gastos.';
+        } else if (spendingPercentage <= 90 || dangers.length <= 2) {
+            healthClass = 'warning';
+            healthIcon = ICONS.clock;
+            healthTitle.textContent = 'Atención Requerida';
+            healthDescription.textContent = 'Algunos gastos están por encima del límite recomendado.';
+        } else {
+            healthClass = 'danger';
+            healthIcon = ICONS.expense;
+            healthTitle.textContent = 'Situación Crítica';
+            healthDescription.textContent = 'Estás gastando más de lo recomendado. Revisa tus gastos.';
         }
-    });
-    cardsContainer.innerHTML = cardsHTML || '<p class="empty-state">No hay gastos este mes para analizar</p>';
 
-    // Generate health indicator and recommendations
-    const healthIndicator = document.getElementById('health-indicator');
-    const healthTitle = document.getElementById('health-title');
-    const healthDescription = document.getElementById('health-description');
-    const recommendationsContainer = document.getElementById('recommendations');
+        healthIndicator.className = `health-indicator ${healthClass}`;
+        healthIndicator.querySelector('.health-icon').innerHTML = healthIcon;
 
-    let healthClass, healthIcon;
-    if (spendingPercentage <= 50 && dangers.length === 0) {
-        healthClass = 'excellent';
-        healthIcon = ICONS.check;
-        healthTitle.textContent = 'Excelente Salud Financiera';
-        healthDescription.textContent = 'Estás ahorrando más del 50% de tus ingresos. ¡Sigue así!';
-    } else if (spendingPercentage <= 70 && dangers.length === 0) {
-        healthClass = 'good';
-        healthIcon = ICONS.check;
-        healthTitle.textContent = 'Buena Salud Financiera';
-        healthDescription.textContent = 'Tienes un balance saludable entre ingresos y gastos.';
-    } else if (spendingPercentage <= 90 || dangers.length <= 2) {
-        healthClass = 'warning';
-        healthIcon = ICONS.clock;
-        healthTitle.textContent = 'Atención Requerida';
-        healthDescription.textContent = 'Algunos gastos están por encima del límite recomendado.';
-    } else {
-        healthClass = 'danger';
-        healthIcon = ICONS.expense;
-        healthTitle.textContent = 'Situación Crítica';
-        healthDescription.textContent = 'Estás gastando más de lo recomendado. Revisa tus gastos.';
-    }
+        // Generate recommendations
+        let recsHTML = '';
 
-    healthIndicator.className = `health-indicator ${healthClass}`;
-    healthIndicator.querySelector('.health-icon').innerHTML = healthIcon;
-
-    // Generate recommendations
-    let recsHTML = '';
-
-    dangers.filter(d => !d.essential).forEach(d => {
-        recsHTML += `
+        dangers.filter(d => !d.essential).forEach(d => {
+            recsHTML += `
             <div class="recommendation-item">
                 <span class="recommendation-icon danger">${ICONS.expense}</span>
                 <span><strong>${d.name}</strong> excede ${d.excess.toFixed(1)}% el límite. Considera reducir estos gastos.</span>
             </div>
         `;
-    });
+        });
 
-    dangers.filter(d => d.essential).forEach(d => {
-        recsHTML += `
+        dangers.filter(d => d.essential).forEach(d => {
+            recsHTML += `
             <div class="recommendation-item">
                 <span class="recommendation-icon warning">${ICONS.clock}</span>
                 <span><strong>${d.name}</strong> está alto. Busca alternativas más económicas.</span>
             </div>
         `;
-    });
+        });
 
-    if (spendingPercentage > 70 && dangers.length === 0) {
-        recsHTML += `
+        if (spendingPercentage > 70 && dangers.length === 0) {
+            recsHTML += `
             <div class="recommendation-item">
                 <span class="recommendation-icon tip">${ICONS.chart}</span>
                 <span>Intenta reducir gastos generales para aumentar tu ahorro mensual.</span>
             </div>
         `;
-    }
+        }
 
-    if (recsHTML === '') {
-        recsHTML = `
+        if (recsHTML === '') {
+            recsHTML = `
             <div class="recommendation-item">
                 <span class="recommendation-icon tip">${ICONS.check}</span>
                 <span>¡Vas muy bien! Mantén este ritmo de gastos controlados.</span>
             </div>
         `;
-    }
+        }
 
-    recommendationsContainer.innerHTML = recsHTML;
+        recommendationsContainer.innerHTML = recsHTML || '<p class="empty-state">No hay alertas de salud financiera por ahora.</p>';
+
+    } catch (error) {
+        console.error("Error inside renderAnalysis:", error);
+        document.getElementById('health-title').textContent = "Error de Cálculo";
+        document.getElementById('health-description').textContent = "Revisa la consola para más detalles.";
+        if (typeof showToast === 'function') showToast("Error al cargar análisis", "error");
+    }
 }
 
 function renderUpcomingPayments() {
