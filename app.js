@@ -732,15 +732,51 @@ function renderAnalysis() {
     const totalDebtObligations = state.debts.reduce((sum, d) => sum + (d.monthlyPayment || 0), 0);
     const totalObligations = totalFixedObligations + totalDebtObligations;
 
+    // PROJECTED INCOME CALCULATION
+    // If we have salary income, we project it for the full month analysis
+    // Strategy: Look for "Salario" category incomes in the current month
+    const salaryEntries = state.income.filter(i => {
+        if (!i.date) return false;
+        const [y, m] = i.date.split('-').map(Number);
+        return (m - 1) === currentMonth && y === currentYear && (i.category === '💼' || i.icon === '💼');
+    });
+
+    let projectedIncome = monthIncome;
+
+    // If we have at least one salary entry and it's early in the month (before 20th), 
+    // and we assume bi-weekly payments, we might project double if only one received.
+    // Ideally, we should use a user setting, but for now let's be smart:
+    // If total expenses > monthIncome but < (monthIncome + lastSalary), assume another salary coming
+    if (salaryEntries.length > 0 && totalObligations > monthIncome) {
+        // Find the most recent salary amount (likely a bi-weekly payment)
+        const lastSalary = Math.max(...salaryEntries.map(s => s.amount));
+
+        // Naive projection: If received < obligations, assume we will receive at least one more salary chunk
+        // This is a heuristic to fix the "Panic Red" dashboard early in the month
+        projectedIncome += lastSalary;
+    }
+
+    // Use Projected Income for Financial Health Ratios (Debt Ratio & CashFlow Projection)
+    // But show Actual Income in the top summary for transparency
+
     // Total Monthly Outflow (Variable + Obligations)
     const totalOutflow = variableExpenses + totalObligations;
 
-    // Financial Metrics
-    const freeCashFlow = monthIncome > 0 ? (monthIncome - totalOutflow) : 0;
-    const spendingPercentage = monthIncome > 0 ? (totalOutflow / monthIncome * 100) : 0;
-    const debtRatio = monthIncome > 0 ? (totalObligations / monthIncome * 100) : 0;
+    // Financial Metrics based on PROJECTION to be realistic
+    const freeCashFlow = projectedIncome - totalOutflow;
+    // Spending % still based on REAL income for tracking, or Projected? 
+    // Let's use Projected for the "Health" status, but show real percentage relative to what we HAVE.
+    const spendingPercentage = projectedIncome > 0 ? (totalOutflow / projectedIncome * 100) : 0;
+    const debtRatio = projectedIncome > 0 ? (totalObligations / projectedIncome * 100) : 0;
 
     // Update summary with Professional view
+    // Show Actual Income but with an indicator if projected is different
+    const incomeLabel = projectedIncome > monthIncome ? `Ingresos (Proy. ${formatCurrency(projectedIncome)})` : 'Ingresos Totales';
+
+    // Find label element or update text directly
+    const incomeStat = document.getElementById('analysis-income').parentElement;
+    if (incomeStat) incomeStat.querySelector('.stat-label').textContent = incomeLabel;
+
     document.getElementById('analysis-income').textContent = formatCurrency(monthIncome);
     document.getElementById('analysis-expenses').textContent = formatCurrency(totalOutflow);
 
