@@ -862,8 +862,8 @@ function renderAnalysis() {
         if (totalDebtObligations > 0) categoryTotals['debt'] = (categoryTotals['debt'] || 0) + totalDebtObligations;
         if (totalFixedObligations > 0) categoryTotals['fixed'] = (categoryTotals['fixed'] || 0) + totalFixedObligations;
 
-        const categories = [];
-        const dangers = [];
+        // Initialize empty arrays
+        // We will populate them later
 
         // Generate donut chart
         const colors = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
@@ -905,33 +905,11 @@ function renderAnalysis() {
         // Generate category cards
         const cardsContainer = document.getElementById('category-cards');
         let cardsHTML = '';
-        // Reset arrays for processing
-        warnings = []; // Assuming warnings was meant to be used or declared? Wait, warnings wasn't declared above.
-        // Dangers WAS declared above.
-        // Let's check if 'warnings' is declared above. It is NOT in the view I saw (850-910).
-        // So 'let warnings = []' is fine. 'let dangers = []' is the error.
 
-        // HOWEVER, I should better remove the top declaration if I want to keep it here, OR remove the 'let' here.
-        // The top declaration (line 864) is needed ? No, it's used at line 948 (health check). The Loop at 908 populates it.
-        // So I MUST declare it at the top (864) and just reset it here? No need to reset if I just declared it empty at 864 and didn't touch it.
-        // But wait, did I use it between 864 and 906? No.
-        // So removing 'let' at 906 is correct (effectively a reset, though redundant if empty).
-        // ACTUALLY, line 905 'let warnings = []'.
-        // Let's look at line 864: 'const categories = []; const dangers = [];'
-        // I changed 864 to 'const dangers = []' in previous turn? 
-        // Wait, step 1109 shows: 
-        // -    const categories = [];
-        // -    const dangers = [];
-        // I REMOVED them in step 1109 block?
-        // Let's re-read the file view in step 1130.
-        // Line 863: const categories = [];
-        // Line 864: const dangers = [];
-        // Line 906: let dangers = [];
-        // Syntax Error: Identifier 'dangers' has already been declared.
-        // FIX: Remove line 906 declaration.
-
+        // Safely initialize analysis arrays
         let warnings = [];
-        // dangers is already declared at line 864.
+        let dangers = [];
+        // We use local variables to ensure fresh state on every render
 
         Object.entries(categoryConfig).forEach(([cat, config]) => {
             const amount = categoryTotals[cat] || 0;
