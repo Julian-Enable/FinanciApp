@@ -1006,7 +1006,9 @@ function renderCalendar() {
         const payments = state.debts
             .filter(d => d.dueDay)
             .map(d => {
-                const isPaid = (d.payments || []).includes(monthYear);
+                // Verificar si tiene abonos en este mes usando paymentHistory
+                const monthPayments = (d.paymentHistory || []).filter(p => p.monthYear === monthYear);
+                const isPaid = monthPayments.length > 0;
                 const dueDate = new Date(year, month, d.dueDay);
                 const isOverdue = !isPaid && dueDate < now;
 
