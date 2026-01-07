@@ -724,12 +724,51 @@ function renderAnalysis() {
     });
 
     const monthIncome = state.income.reduce((sum, i) => sum + (i.amount || 0), 0);
-    const totalExpenses = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const spendingPercentage = monthIncome > 0 ? (totalExpenses / monthIncome * 100) : 0;
+    const variableExpenses = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    // Update summary
+    // Calculate Monthly Obligations (Fixed Expenses + Debt Payments)
+    // We assume these are monthly commitments regardless of payment status
+    const totalFixedObligations = state.fixedExpenses.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const totalDebtObligations = state.debts.reduce((sum, d) => sum + (d.monthlyPayment || 0), 0);
+    const totalObligations = totalFixedObligations + totalDebtObligations;
+
+    // Total Monthly Outflow (Variable + Obligations)
+    const totalOutflow = variableExpenses + totalObligations;
+
+    // Financial Metrics
+    const freeCashFlow = monthIncome > 0 ? (monthIncome - totalOutflow) : 0;
+    const spendingPercentage = monthIncome > 0 ? (totalOutflow / monthIncome * 100) : 0;
+    const debtRatio = monthIncome > 0 ? (totalObligations / monthIncome * 100) : 0;
+
+    // Update summary with Professional view
     document.getElementById('analysis-income').textContent = formatCurrency(monthIncome);
-    document.getElementById('analysis-expenses').textContent = formatCurrency(totalExpenses);
+    document.getElementById('analysis-expenses').textContent = formatCurrency(totalOutflow);
+
+    // Cash Flow styling
+    const cashFlowEl = document.getElementById('analysis-cashflow');
+    cashFlowEl.textContent = formatCurrency(freeCashFlow);
+    cashFlowEl.style.color = freeCashFlow >= 0 ? 'var(--accent-secondary)' : 'var(--accent-danger)';
+
+    // Update Professional Metrics Cards
+    document.getElementById('metric-obligations').textContent = formatCurrency(totalObligations);
+    document.getElementById('metric-variable').textContent = formatCurrency(variableExpenses);
+
+    // Debt Ratio Logic
+    const debtRatioEl = document.getElementById('metric-debt-ratio');
+    const debtStatusEl = document.getElementById('metric-debt-status');
+    debtRatioEl.textContent = `${Math.round(debtRatio)}%`;
+
+    if (debtRatio <= 30) {
+        debtRatioEl.style.color = 'var(--accent-secondary)';
+        debtStatusEl.textContent = 'Endeudamiento Saludable';
+    } else if (debtRatio <= 45) {
+        debtRatioEl.style.color = 'var(--accent-warning)';
+        debtStatusEl.textContent = 'Endeudamiento Moderado';
+    } else {
+        debtRatioEl.style.color = 'var(--accent-danger)';
+        debtStatusEl.textContent = 'Alto Endeudamiento';
+    }
+
     document.getElementById('analysis-percentage').textContent = `${Math.round(spendingPercentage)}%`;
 
     // Update spending bar
@@ -737,18 +776,17 @@ function renderAnalysis() {
     const cappedPercentage = Math.min(spendingPercentage, 100);
     spendingFill.style.width = `${cappedPercentage}%`;
 
-    if (spendingPercentage <= 50) {
+    // Status text based on Cash Flow
+    const statusText = document.getElementById('spending-status');
+    if (freeCashFlow > monthIncome * 0.2) { // Saving > 20%
         spendingFill.style.background = 'var(--accent-secondary)';
-        document.getElementById('spending-status').textContent = 'Excelente control de gastos';
-    } else if (spendingPercentage <= 70) {
-        spendingFill.style.background = 'var(--gradient-success)';
-        document.getElementById('spending-status').textContent = 'Buen balance financiero';
-    } else if (spendingPercentage <= 90) {
+        statusText.textContent = `Excelente: Tienes ${formatCurrency(freeCashFlow)} disponibles para ahorro/inversión`;
+    } else if (freeCashFlow >= 0) {
         spendingFill.style.background = 'var(--accent-warning)';
-        document.getElementById('spending-status').textContent = 'Cuidado: gastos elevados';
+        statusText.textContent = `Balanceado: Te quedan ${formatCurrency(freeCashFlow)} libres`;
     } else {
         spendingFill.style.background = 'var(--accent-danger)';
-        document.getElementById('spending-status').textContent = 'Alerta: estás gastando demasiado';
+        statusText.textContent = `Déficit: Estás gastando ${formatCurrency(Math.abs(freeCashFlow))} más de lo que ganas`;
     }
 
     // Category analysis with recommended limits
