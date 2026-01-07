@@ -310,9 +310,23 @@
 
             <!-- Financial Analysis Section -->
             <section id="analysis-section" class="section">
-                <div class="section-header">
+                <div class="section-header analysis-header">
                     <h2>Análisis Financiero</h2>
-                    <span class="current-month" id="analysis-month"></span>
+                    <div class="month-selector">
+                        <button class="btn-icon-small" onclick="window.changeAnalysisMonth(-1)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                        </button>
+                        <span class="current-month" id="analysis-month"></span>
+                        <button class="btn-icon-small" onclick="window.changeAnalysisMonth(1)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Income vs Expenses Summary -->

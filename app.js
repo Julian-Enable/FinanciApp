@@ -51,7 +51,8 @@ const state = {
     income: [],
     expenses: [],
     fixedExpenses: [],
-    currentSection: 'dashboard'
+    currentSection: 'dashboard',
+    currentAnalysisDate: new Date()
 };
 
 // ============================================
@@ -694,8 +695,18 @@ function updateDashboard() {
 // ============================================
 // Financial Analysis
 // ============================================
+window.changeAnalysisMonth = (offset) => {
+    // Clone current analysis date
+    const currentDate = new Date(state.currentAnalysisDate);
+    // Set to 1st of month to avoid issues when navigating from 31st to Feb
+    currentDate.setDate(1);
+    currentDate.setMonth(currentDate.getMonth() + offset);
+    state.currentAnalysisDate = currentDate;
+    renderAnalysis();
+};
+
 function renderAnalysis() {
-    const now = new Date();
+    const now = state.currentAnalysisDate;
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
