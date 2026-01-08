@@ -448,7 +448,7 @@ function openPaymentModal(debtId, monthYear, suggestedAmount) {
             <label for="payment-notes">Notas (opcional)</label>
             <input type="text" id="payment-notes" placeholder="Ej: Pago parcial, abono extra...">
         </div>
-        <button type="submit" class="btn btn-success">💸 Registrar Pago</button>
+        <button type="submit" class="btn btn-success">Registrar Pago</button>
     `;
     form.dataset.type = 'payment';
     overlay.classList.add('active');
@@ -651,7 +651,7 @@ function openFixedPaymentModal(fixedId, monthYear, suggestedAmount) {
             <label for="fixed-payment-amount">Monto a pagar *</label>
             <input type="number" id="fixed-payment-amount" value="${suggestedAmount}" placeholder="Monto del pago" required min="0">
         </div>
-        <button type="submit" class="btn btn-success">💸 Registrar Pago</button>
+        <button type="submit" class="btn btn-success">Registrar Pago</button>
     `;
     form.dataset.type = 'fixed-payment';
     overlay.classList.add('active');
@@ -746,7 +746,7 @@ function renderAnalysis() {
         // Fix: Incomes don't have dates, they are treated as current month inputs.
         // We look for 'Quincenal' frequency or 'Salario' keywords
         const salaryIncomes = state.income.filter(i =>
-            (i.frequency === 'Quincenal' || (i.name && i.name.toLowerCase().includes('quincena')) || i.category === '💼' || i.icon === '💼')
+            (i.frequency === 'Quincenal' || (i.name && i.name.toLowerCase().includes('quincena')) || i.category === 'briefcase' || i.icon === 'briefcase')
         );
 
         let projectedIncome = monthIncome;
@@ -1118,7 +1118,7 @@ function renderDebts() {
             <div class="debt-card">
                 <div class="debt-header">
                     <div class="debt-title">
-                        <span>${debt.icon || '💳'}</span>
+                        ${getIcon(debt.icon || 'card')}
                         <h4>${debt.name}</h4>
                     </div>
                     <div class="debt-actions">
@@ -1157,7 +1157,7 @@ function renderDebts() {
                 
                 <div class="month-payments">
                     <div class="month-payments-header">
-                        <span>📅 Abonos ${monthName.toUpperCase()}: ${formatCurrency(monthTotal)}</span>
+                        <span>${getIcon('calendar')} Abonos ${monthName.toUpperCase()}: ${formatCurrency(monthTotal)}</span>
                         <button class="btn btn-sm btn-success" onclick="window.addPayment('${debt.id}', '${monthYear}')">+ Abonar</button>
                     </div>
                     ${monthPayments.length > 0 ? `
@@ -1188,7 +1188,7 @@ function renderIncome() {
     container.innerHTML = state.income.map(item => `
         <div class="item-card">
             <div class="item-left">
-                <span class="item-icon">${item.icon || '💵'}</span>
+                <span class="item-icon">${getIcon(item.icon || 'money')}</span>
                 <div class="item-details">
                     <h4>${item.name}</h4>
                     <span>${item.frequency || 'Mensual'}</span>
@@ -1291,7 +1291,7 @@ function renderFixedExpenses() {
             <div class="debt-card">
                 <div class="debt-header">
                     <div class="debt-title">
-                        <span>${fixed.icon || '🔄'}</span>
+                        ${getIcon(fixed.icon || 'fixed')}
                         <h4>${fixed.name}</h4>
                     </div>
                     <div class="debt-actions">
@@ -1322,7 +1322,7 @@ function renderFixedExpenses() {
                 
                 <div class="month-payments">
                     <div class="month-payments-header">
-                        <span>📅 Abonos ${monthName.toUpperCase()}: ${formatCurrency(monthTotal)}</span>
+                        <span>${getIcon('calendar')} Abonos ${monthName.toUpperCase()}: ${formatCurrency(monthTotal)}</span>
                         <button class="btn btn-sm btn-success" onclick="window.addFixedPayment('${fixed.id}', '${monthYear}')">+ Abonar</button>
                     </div>
                     ${monthPayments.length > 0 ? `
@@ -1394,7 +1394,7 @@ function renderCalendar() {
                                 <span class="weekday">${weekdays[p.dueDate.getDay()]}</span>
                             </div>
                             <div class="calendar-details">
-                                <h4>${p.icon || '💳'} ${p.name}</h4>
+                                <h4>${getIcon(p.icon || 'card')} ${p.name}</h4>
                                 <span>${formatCurrency(p.monthlyPayment)}</span>
                             </div>
                         </div>
@@ -1429,13 +1429,13 @@ function openModal(type, data = null) {
                 <div class="form-group">
                     <label for="debt-icon">Icono</label>
                     <select id="debt-icon">
-                        <option value="💳" ${data?.icon === '💳' ? 'selected' : ''}>💳 Tarjeta</option>
-                        <option value="🏠" ${data?.icon === '🏠' ? 'selected' : ''}>🏠 Vivienda</option>
-                        <option value="🚗" ${data?.icon === '🚗' ? 'selected' : ''}>🚗 Vehículo</option>
-                        <option value="📱" ${data?.icon === '📱' ? 'selected' : ''}>📱 Tecnología</option>
-                        <option value="🎓" ${data?.icon === '🎓' ? 'selected' : ''}>🎓 Educación</option>
-                        <option value="🏥" ${data?.icon === '🏥' ? 'selected' : ''}>🏥 Salud</option>
-                        <option value="📦" ${data?.icon === '📦' ? 'selected' : ''}>📦 Otro</option>
+                        <option value="card" ${data?.icon === 'card' ? 'selected' : ''}>Tarjeta</option>
+                        <option value="home" ${data?.icon === 'home' ? 'selected' : ''}>Vivienda</option>
+                        <option value="car" ${data?.icon === 'car' ? 'selected' : ''}>Vehículo</option>
+                        <option value="phone" ${data?.icon === 'phone' ? 'selected' : ''}>Tecnología</option>
+                        <option value="education" ${data?.icon === 'education' ? 'selected' : ''}>Educación</option>
+                        <option value="health" ${data?.icon === 'health' ? 'selected' : ''}>Salud</option>
+                        <option value="package" ${data?.icon === 'package' ? 'selected' : ''}>Otro</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1465,13 +1465,13 @@ function openModal(type, data = null) {
                 <div class="form-group">
                     <label for="income-icon">Icono</label>
                     <select id="income-icon">
-                        <option value="💵" ${data?.icon === '💵' ? 'selected' : ''}>💵 Dinero</option>
-                        <option value="💼" ${data?.icon === '💼' ? 'selected' : ''}>💼 Salario</option>
-                        <option value="🏢" ${data?.icon === '🏢' ? 'selected' : ''}>🏢 Empresa</option>
-                        <option value="💻" ${data?.icon === '💻' ? 'selected' : ''}>💻 Freelance</option>
-                        <option value="🏠" ${data?.icon === '🏠' ? 'selected' : ''}>🏠 Arriendo</option>
-                        <option value="📈" ${data?.icon === '📈' ? 'selected' : ''}>📈 Inversiones</option>
-                        <option value="🎁" ${data?.icon === '🎁' ? 'selected' : ''}>🎁 Otro</option>
+                        <option value="money" ${data?.icon === 'money' ? 'selected' : ''}>Dinero</option>
+                        <option value="briefcase" ${data?.icon === 'briefcase' ? 'selected' : ''}>Salario</option>
+                        <option value="building" ${data?.icon === 'building' ? 'selected' : ''}>Empresa</option>
+                        <option value="laptop" ${data?.icon === 'laptop' ? 'selected' : ''}>Freelance</option>
+                        <option value="home" ${data?.icon === 'home' ? 'selected' : ''}>Arriendo</option>
+                        <option value="chart" ${data?.icon === 'chart' ? 'selected' : ''}>Inversiones</option>
+                        <option value="gift" ${data?.icon === 'gift' ? 'selected' : ''}>Otro</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1503,12 +1503,12 @@ function openModal(type, data = null) {
                 <div class="form-group">
                     <label for="expense-category">Categoría</label>
                     <select id="expense-category">
-                        <option value="food" ${data?.category === 'food' ? 'selected' : ''}>🍔 Comida</option>
-                        <option value="transport" ${data?.category === 'transport' ? 'selected' : ''}>🚗 Transporte</option>
-                        <option value="entertainment" ${data?.category === 'entertainment' ? 'selected' : ''}>🎮 Entretenimiento</option>
-                        <option value="services" ${data?.category === 'services' ? 'selected' : ''}>📱 Servicios</option>
-                        <option value="health" ${data?.category === 'health' ? 'selected' : ''}>🏥 Salud</option>
-                        <option value="other" ${data?.category === 'other' ? 'selected' : ''}>📦 Otros</option>
+                        <option value="food" ${data?.category === 'food' ? 'selected' : ''}>Comida</option>
+                        <option value="transport" ${data?.category === 'transport' ? 'selected' : ''}>Transporte</option>
+                        <option value="entertainment" ${data?.category === 'entertainment' ? 'selected' : ''}>Entretenimiento</option>
+                        <option value="services" ${data?.category === 'services' ? 'selected' : ''}>Servicios</option>
+                        <option value="health" ${data?.category === 'health' ? 'selected' : ''}>Salud</option>
+                        <option value="other" ${data?.category === 'other' ? 'selected' : ''}>Otros</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1534,13 +1534,13 @@ function openModal(type, data = null) {
                 <div class="form-group">
                     <label for="fixed-icon">Icono</label>
                     <select id="fixed-icon">
-                        <option value="🏠" ${data?.icon === '🏠' ? 'selected' : ''}>🏠 Arriendo/Vivienda</option>
-                        <option value="💡" ${data?.icon === '💡' ? 'selected' : ''}>💡 Servicios Públicos</option>
-                        <option value="📱" ${data?.icon === '📱' ? 'selected' : ''}>📱 Celular/Internet</option>
-                        <option value="🎬" ${data?.icon === '🎬' ? 'selected' : ''}>🎬 Suscripciones</option>
-                        <option value="🚗" ${data?.icon === '🚗' ? 'selected' : ''}>🚗 Transporte</option>
-                        <option value="🏋️" ${data?.icon === '🏋️' ? 'selected' : ''}>🏋️ Gimnasio</option>
-                        <option value="🔄" ${data?.icon === '🔄' ? 'selected' : ''}>🔄 Otro</option>
+                        <option value="home" ${data?.icon === 'home' ? 'selected' : ''}>Arriendo/Vivienda</option>
+                        <option value="lightbulb" ${data?.icon === 'lightbulb' ? 'selected' : ''}>Servicios Públicos</option>
+                        <option value="phone" ${data?.icon === 'phone' ? 'selected' : ''}>Celular/Internet</option>
+                        <option value="tv" ${data?.icon === 'tv' ? 'selected' : ''}>Suscripciones</option>
+                        <option value="car" ${data?.icon === 'car' ? 'selected' : ''}>Transporte</option>
+                        <option value="gym" ${data?.icon === 'gym' ? 'selected' : ''}>Gimnasio</option>
+                        <option value="fixed" ${data?.icon === 'fixed' ? 'selected' : ''}>Otro</option>
                     </select>
                 </div>
                 <div class="form-group">
