@@ -108,9 +108,35 @@ const ICONS = {
     logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
 };
 
+// Map old emoji values to new icon keys (for backward compatibility with existing data)
+const EMOJI_TO_ICON = {
+    '💳': 'card',
+    '🏠': 'home',
+    '🚗': 'car',
+    '📱': 'phone',
+    '🎓': 'education',
+    '🏥': 'health',
+    '📦': 'package',
+    '💵': 'money',
+    '💼': 'briefcase',
+    '🏢': 'building',
+    '💻': 'laptop',
+    '📈': 'chart',
+    '🎁': 'gift',
+    '🍔': 'food',
+    '🎮': 'entertainment',
+    '💡': 'lightbulb',
+    '🎬': 'tv',
+    '🏋️': 'gym',
+    '🔄': 'fixed',
+    '📅': 'calendar'
+};
+
 // Helper function to get icon HTML
 function getIcon(name, className = '') {
-    return `<span class="icon ${className}">${ICONS[name] || ICONS.package}</span>`;
+    // Convert emoji to icon key if necessary
+    const iconKey = EMOJI_TO_ICON[name] || name;
+    return `<span class="icon ${className}">${ICONS[iconKey] || ICONS.package}</span>`;
 }
 
 // ============================================
