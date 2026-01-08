@@ -1083,7 +1083,7 @@ function renderUpcomingPayments() {
             const monthPayments = (f.paymentHistory || []).filter(p => p.monthYear === monthYear);
             return monthPayments.length === 0 && f.dueDay;
         })
-        .map(f => ({ ...f, type: 'fixed', payAmount: f.amount, icon: f.icon || ICONS.fixed }));
+        .map(f => ({ ...f, type: 'fixed', payAmount: f.amount }));
 
     // Combine and sort by due day
     const allUpcoming = [...upcomingDebts, ...upcomingFixed].sort((a, b) => a.dueDay - b.dueDay);
@@ -1101,12 +1101,12 @@ function renderUpcomingPayments() {
         const isDueSoon = item.dueDay - currentDay <= 3 && item.dueDay >= currentDay;
         const statusClass = isOverdue ? 'overdue' : (isDueSoon ? 'due-soon' : '');
         const typeLabel = item.type === 'fixed' ? 'Gasto Fijo' : 'Deuda';
-        const iconHtml = item.type === 'fixed' ? ICONS.fixed : (item.icon || ICONS.card);
+        const iconKey = item.type === 'fixed' ? (item.icon || 'fixed') : (item.icon || 'card');
 
         return `
             <div class="payment-item ${statusClass}">
                 <div class="payment-info">
-                    <span class="payment-icon">${iconHtml}</span>
+                    <span class="payment-icon">${getIcon(iconKey)}</span>
                     <div class="payment-details">
                         <h4>${item.name}</h4>
                         <span>Vence día ${item.dueDay} · ${typeLabel}</span>
@@ -1269,7 +1269,7 @@ function renderExpenses() {
     container.innerHTML = filtered.map(item => `
         <div class="item-card">
             <div class="item-left">
-                <span class="item-icon">${ICONS[categoryIconsMap[item.category]] || ICONS.package}</span>
+                <span class="item-icon">${getIcon(categoryIconsMap[item.category] || 'package')}</span>
                 <div class="item-details">
                     <h4>${item.name}</h4>
                     <span>${item.date ? formatDate(item.date) : 'Sin fecha'}</span>
