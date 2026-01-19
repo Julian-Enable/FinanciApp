@@ -690,15 +690,36 @@ function updateDashboard() {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
+    const monthYear = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
     // Calculate totals
     const totalIncome = state.income.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const totalExpenses = state.expenses
+
+    // Regular expenses this month
+    const regularExpenses = state.expenses
         .filter(e => {
             const date = e.date ? new Date(e.date) : new Date();
             return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
         })
         .reduce((sum, item) => sum + (item.amount || 0), 0);
+
+    // Debt payments made this month (from paymentHistory)
+    const debtPaymentsThisMonth = state.debts.reduce((sum, debt) => {
+        const monthPayments = (debt.paymentHistory || [])
+            .filter(p => p.monthYear === monthYear);
+        return sum + monthPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    }, 0);
+
+    // Fixed expense payments made this month (from paymentHistory)
+    const fixedPaymentsThisMonth = state.fixedExpenses.reduce((sum, fixed) => {
+        const monthPayments = (fixed.paymentHistory || [])
+            .filter(p => p.monthYear === monthYear);
+        return sum + monthPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    }, 0);
+
+    // Total ALL expenses (for real balance)
+    const totalExpenses = regularExpenses + debtPaymentsThisMonth + fixedPaymentsThisMonth;
+
     const totalDebts = state.debts.reduce((sum, d) => sum + ((d.totalAmount || 0) - (d.paidAmount || 0)), 0);
     const balance = totalIncome - totalExpenses;
 
