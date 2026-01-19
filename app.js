@@ -695,9 +695,13 @@ function updateDashboard() {
     // Calculate totals
     const totalIncome = state.income.reduce((sum, item) => sum + (item.amount || 0), 0);
 
-    // Regular expenses this month
+    // Regular expenses this month (exclude debt/fixed which are already counted from paymentHistory)
     const regularExpenses = state.expenses
         .filter(e => {
+            // Exclude debt payments and fixed payments (they're counted from paymentHistory)
+            if (e.category === 'debt' || e.category === 'fixed' || e.debtId || e.fixedId) {
+                return false;
+            }
             const date = e.date ? new Date(e.date) : new Date();
             return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
         })
