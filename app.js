@@ -693,7 +693,14 @@ function updateDashboard() {
     const monthYear = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
     // Calculate totals
-    const totalIncome = state.income.reduce((sum, item) => sum + (item.amount || 0), 0);
+    // Filter incomes by current month (like expenses)
+    const totalIncome = state.income
+        .filter(i => {
+            if (!i.date) return false; // Skip income without date
+            const date = new Date(i.date);
+            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        })
+        .reduce((sum, item) => sum + (item.amount || 0), 0);
 
     // Regular expenses this month (exclude debt/fixed which are already counted from paymentHistory)
     const regularExpenses = state.expenses
@@ -775,7 +782,14 @@ function renderAnalysis() {
             return (month - 1) === currentMonth && year === currentYear;
         });
 
-        const monthIncome = state.income.reduce((sum, i) => sum + (i.amount || 0), 0);
+        // Filter incomes by current month (same as expenses and dashboard)
+        const monthIncome = state.income
+            .filter(i => {
+                if (!i.date) return false;
+                const [year, month, day] = i.date.split('-').map(Number);
+                return (month - 1) === currentMonth && year === currentYear;
+            })
+            .reduce((sum, i) => sum + (i.amount || 0), 0);
 
         // Fix: Exclude Debt Payments and Fixed Expense Payments from Variable Expenses 
         // to avoid double counting with "Total Obligations"
@@ -791,50 +805,13 @@ function renderAnalysis() {
         const totalDebtObligations = state.debts.reduce((sum, d) => sum + Number(d.monthlyPayment || 0), 0);
         const totalObligations = totalFixedObligations + totalDebtObligations;
 
-        // PROJECTED INCOME CALCULATION
-        // If we have salary income, we project it for the full month analysis
-        // Strategy: Look for "Salario" category incomes in the current month
-        // Fix: Incomes don't have dates, they are treated as current month inputs.
-        // We look for 'Quincenal' frequency or 'Salario' keywords
-        const salaryIncomes = state.income.filter(i =>
-            (i.frequency === 'Quincenal' || (i.name && i.name.toLowerCase().includes('quincena')) || i.category === 'briefcase' || i.icon === 'briefcase')
-        );
-
-        let projectedIncome = monthIncome;
-
-        // If we have at least one salary entry and it's early in the month (be fore 20th), 
-        // and we assume bi-weekly payments, we might project double if only one received.
-        // Ideally, we should use a user setting, but for now let's be smart:
-        // If total expenses > monthIncome but < (monthIncome + lastSalary), assume another salary coming
-        if (salaryIncomes.length > 0 && totalObligations > monthIncome) {
-            // Find the most recent salary amount (likely a bi-weekly payment)
-            const lastSalary = Math.max(...salaryIncomes.map(s => s.amount));
-
-            // Naive projection: If received < obligations, assume we will receive at least one more salary chunk
-            // This is a heuristic to fix the "Panic Red" dashboard early in the month
-            projectedIncome += lastSalary;
-        }
-
-        // Use Projected Income for Financial Health Ratios (Debt Ratio & CashFlow Projection)
-        // But show Actual Income in the top summary for transparency
-
         // Total Monthly Outflow (Variable + Obligations)
         const totalOutflow = variableExpenses + totalObligations;
 
-        // Financial Metrics based on PROJECTION to be realistic
-        const freeCashFlow = projectedIncome - totalOutflow;
-        // Spending % still based on REAL income for tracking, or Projected? 
-        // Let's use Projected for the "Health" status, but show real percentage relative to what we HAVE.
-        const spendingPercentage = projectedIncome > 0 ? (totalOutflow / projectedIncome * 100) : 0;
-        const debtRatio = projectedIncome > 0 ? (totalObligations / projectedIncome * 100) : 0;
-
-        // Update summary with Professional view
-        // Show Actual Income but with an indicator if projected is different
-        const incomeLabel = projectedIncome > monthIncome ? `Ingresos (Proy. ${formatCurrency(projectedIncome)})` : 'Ingresos Totales';
-
-        // Find label element or update text directly
-        const incomeStat = document.getElementById('analysis-income').parentElement;
-        if (incomeStat) incomeStat.querySelector('.stat-label').textContent = incomeLabel;
+        // Financial Metrics based on REAL income received this month
+        const freeCashFlow = monthIncome - totalOutflow;
+        const spendingPercentage = monthIncome > 0 ? (totalOutflow / monthIncome * 100) : 0;
+        const debtRatio = monthIncome > 0 ? (totalObligations / monthIncome * 100) : 0;
 
         document.getElementById('analysis-income').textContent = formatCurrency(monthIncome);
         document.getElementById('analysis-expenses').textContent = formatCurrency(totalOutflow);
@@ -1534,6 +1511,10 @@ function openModal(type, data = null) {
                     <input type="number" id="income-amount" value="${data?.amount || ''}" placeholder="Ej: 3500000" required min="0">
                 </div>
                 <div class="form-group">
+                    <label for="income-date">Fecha de recepción *</label>
+                    <input type="date" id="income-date" value="${data?.date || new Date().toISOString().split('T')[0]}" required>
+                </div>
+                <div class="form-group">
                     <label for="income-frequency">Frecuencia</label>
                     <select id="income-frequency">
                         <option value="Mensual" ${data?.frequency === 'Mensual' ? 'selected' : ''}>Mensual</option>
@@ -1647,6 +1628,7 @@ function handleFormSubmit(e) {
                 icon: document.getElementById('income-icon').value,
                 name: document.getElementById('income-name').value,
                 amount: parseFloat(document.getElementById('income-amount').value),
+                date: document.getElementById('income-date').value,
                 frequency: document.getElementById('income-frequency').value
             };
             if (editId) {
