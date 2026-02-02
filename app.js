@@ -1870,6 +1870,59 @@ window.editFixed = (id) => {
 window.deleteFixed = deleteFixedExpense;
 
 // ============================================
+// TEMPORARY: Income Data Migration
+// Run once in console: migrateIncomeDates()
+// ============================================
+window.migrateIncomeDates = async function () {
+    try {
+        console.log('🔄 Starting income migration...');
+
+        if (!currentUser) {
+            console.error('❌ No user logged in!');
+            return;
+        }
+
+        const incomeQuery = query(
+            collection(db, 'income'),
+            where('userId', '==', currentUser.uid)
+        );
+
+        const snapshot = await getDocs(incomeQuery);
+        console.log(`📊 Found ${snapshot.docs.length} income records`);
+
+        let updated = 0;
+        let alreadyHasDate = 0;
+        let isFirstRecord = true;
+
+        for (const docSnapshot of snapshot.docs) {
+            const data = docSnapshot.data();
+
+            if (data.date) {
+                alreadyHasDate++;
+                console.log(`✓ "${data.name}" already has date: ${data.date}`);
+                continue;
+            }
+
+            const targetDate = isFirstRecord ? '2026-02-01' : '2026-01-15';
+
+            await updateDoc(doc(db, 'income', docSnapshot.id), { date: targetDate });
+
+            updated++;
+            console.log(`✓ Updated "${data.name}" with date: ${targetDate}`);
+            isFirstRecord = false;
+        }
+
+        console.log(`\n✅ Migration complete!`);
+        console.log(`   Updated: ${updated}, Already had dates: ${alreadyHasDate}`);
+        console.log(`\n🔄 Refreshing...`);
+        location.reload();
+
+    } catch (error) {
+        console.error('❌ Migration failed:', error);
+    }
+};
+
+// ============================================
 // Initialize
 // ============================================
 document.addEventListener('DOMContentLoaded', initApp);
